@@ -49,9 +49,7 @@ fi
 data_dir=data_pad
 exp_dir=exp_pad
 
-#gmm_dir=exp/${gmm}
 gmm_dir=${exp_dir}/tri2_8states_4sil_10000_var0.001_beam50_boost1_500_20000_500_20000
-#ali_dir=exp/${gmm}_ali_${train_set}
 ali_dir=${exp_dir}/tri2_ali_8states_4sil_10000_var0.001_beam50_boost1_500_20000_500_20000
 lat_dir=${exp_dir}/chain${nnet3_affix}/${gmm}_${train_set}_lats
 dir=${exp_dir}/chain${nnet3_affix}/cnn${affix}
@@ -105,13 +103,6 @@ if [ $stage -le 2 ]; then
     $gmm_lang $gmm_dir $lat_dir
   rm $lat_dir/fsts.*.gz # save space
 fi
-
-#if [ $stage -le 2 ]; then
-#  # Get the alignments as lattices (gives the chain training more freedom).
-#  # use the same num-jobs as the alignments
-#  local/chain/align_nnet3_lats.sh --nj $nj --cmd "$cmd" ${lores_train_data_dir} \
-#    $gmm_lang $chain_model_dir $lat_dir
-#fi
 
 if [ $stage -le 3 ]; then
   # Build a tree using our new topology.  We know we have alignments for the
