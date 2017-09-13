@@ -9,7 +9,7 @@ gmm=tri2        # this is the source gmm-dir that we'll use for alignments; it
                 # should have alignments for the specified training data.
 nnet3_affix=    # affix for exp dirs, e.g. it was _cleaned in tedlium.
 
-affix=1f  #affix for TDNN+LSTM directory e.g. "1a" or "1b", in case we change the configuration.
+affix=1a  #affix for TDNN+LSTM directory e.g. "1a" or "1b", in case we change the configuration.
 common_egs_dir=
 reporting_email=
 
