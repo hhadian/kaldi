@@ -12,7 +12,7 @@
 # Final train prob (xent)       -0.2737   -0.0879
 # Final valid prob (xent)       -0.4723   -0.0991
 
-# exp_pad/chain/cnn1e/: num-iters=486 nj=2..4 num-params=3.6M dim=40->273 combine=-0.04->-0.04
+# exp_pad/chain/cnn1f/: num-iters=150 nj=3..10 num-params=3.6M dim=40->273 combine=-0.04->-0.04
 
 if [ $# == 0 ]; then
   echo "Usage: $0: <dir1> [<dir2> ... ]"
