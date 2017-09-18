@@ -3,13 +3,14 @@
 # this script is used for comparing decoding results between systems.
 # e.g. local/chain/compare_wer.sh exp/chain/cnn{1a,1b}
 
-# ./local/chain/compare_wer.sh exp/chainfsf4/cnn1a_3 exp/chainfsf4/cnn1a_4
-# System                        cnn1a_3   cnn1a_4
-# WER                             17.60     17.92
-# Final train prob              -0.0112   -0.0113
-# Final valid prob              -0.0961   -0.0955
-# Final train prob (xent)       -0.5676   -0.5713
-# Final valid prob (xent)       -0.9767   -0.9702
+# ./local/chain/compare_wer.sh exp_pad/chain/cnn1b/ exp_pad/chain/cnn1f/
+# System                          cnn1b     cnn1f
+# WER                              7.68      5.03
+# CER                              2.00      0.45
+# Final train prob              -0.0286   -0.0368
+# Final valid prob              -0.0704   -0.0398
+# Final train prob (xent)       -0.2737   -0.0879
+# Final valid prob (xent)       -0.4723   -0.0991
 
 if [ $# == 0 ]; then
   echo "Usage: $0: <dir1> [<dir2> ... ]"
@@ -28,6 +29,13 @@ echo -n "# WER                        "
 for x in $*; do
   wer=$(cat $x/decode_test/scoring_kaldi/best_wer | awk '{print $2}')
   printf "% 10s" $wer
+done
+echo
+
+echo -n "# CER                        "
+for x in $*; do
+  cer=$(cat $x/decode_test/scoring_kaldi/best_cer | awk '{print $2}')
+  printf "% 10s" $cer
 done
 echo
 
