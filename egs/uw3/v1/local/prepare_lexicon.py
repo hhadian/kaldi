@@ -22,9 +22,7 @@ with open(text_path) as f:
     for i in range(1,len(line_vect)):
       characters = list(line_vect[i])
       entry = " ".join(characters)
-
       entry = entry.replace("#", "<HASH>")
-
       lex[line_vect[i]] = entry
 
 if args.test_text > 1:
@@ -36,9 +34,7 @@ if args.test_text > 1:
       for i in range(1,len(line_vect)):
         characters = list(line_vect[i])
         entry = " ".join(characters)
-
         entry = entry.replace("#", "<HASH>")
-
         lex[line_vect[i]] = entry
 
 lex_file = os.path.join(args.dir, 'lexicon.txt')

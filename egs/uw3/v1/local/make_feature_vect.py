@@ -22,14 +22,11 @@ args = parser.parse_args()
 
 
 def write_kaldi_matrix(file_handle, matrix, key):
-    #file_handle.write("[ ")
     file_handle.write(key + " [ ")
-
     num_rows = len(matrix)
     if num_rows == 0:
         raise Exception("Matrix is empty")
     num_cols = len(matrix[0])
-
     for row_index in range(len(matrix)):
         if num_cols != len(matrix[row_index]):
             raise Exception("All the rows of a matrix are expected to "
@@ -43,7 +40,6 @@ def get_scaled_image(im):
     scale_size = args.scale_size
     sx = im.shape[1]
     sy = im.shape[0]
-    
     # Some Images are rotated
     if sy > sx:
         im = np.rot90(im, k = -1)
@@ -53,9 +49,7 @@ def get_scaled_image(im):
     scale = (1.0 * scale_size) / sy
     nx = int(scale_size)
     ny = int(scale * sx)
-
     im = misc.imresize(im, (nx, ny))
-    
     return im
 
 ### main ###
@@ -74,9 +68,7 @@ with open(data_list_path) as f:
         image_path = line_vect[1]
 
         im = misc.imread(image_path, flatten = True)
-
         im_scale = get_scaled_image(im)
-        
         if args.pad:
             pad = np.ones((args.scale_size, 10)) * 255
             im_data = np.hstack((pad, im_scale, pad))
@@ -84,6 +76,5 @@ with open(data_list_path) as f:
             im_data = im_scale
 
         data = np.transpose(im_data, (1, 0))
-
         data = np.divide(data, 255.0)
         write_kaldi_matrix(out_fh, data, image_id)
