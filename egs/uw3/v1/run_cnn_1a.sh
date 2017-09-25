@@ -4,12 +4,7 @@ set -e -o pipefail
 
 stage=4
 nj=30
-train_set=train        
-# this is the source gmm-dir that we'll use for alignments; it
-# should have alignments for the specified training data.
-gmm=tri2_8states_4sil_10000_var0.001_beam50_boost1_500_20000_500_20000
-ali=tri2_ali_8states_4sil_10000_var0.001_beam50_boost1_500_20000_500_20000
-lang_affix=8states_4sil
+
 # affix for exp dirs, e.g. it was _cleaned in tedlium.
 nnet3_affix=
 
@@ -36,9 +31,6 @@ remove_egs=false
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
 
-data_dir=data_pad
-exp_dir=exp_pad
-
 . ./cmd.sh
 . ./path.sh
 . ./utils/parse_options.sh
@@ -52,22 +44,21 @@ where "nvcc" is installed.
 EOF
 fi
 
-gmm_dir=${exp_dir}/${gmm}
-ali_dir=${exp_dir}/${ali}
-lat_dir=${exp_dir}/chain${nnet3_affix}/${gmm}_${train_set}_lats
-dir=${exp_dir}/chain${nnet3_affix}/cnn${affix}
-train_data_dir=${data_dir}/${train_set}
+gmm_dir=exp/tri2
+ali_dir=exp/tri2_ali
+lat_dir=exp/chain${nnet3_affix}/tri2_train_lats
+dir=exp/chain${nnet3_affix}/cnn${affix}
+train_data_dir=data/train
 lores_train_data_dir=$train_data_dir  # for the start, use the same data for gmm and chain
-
-gmm_lang=${data_dir}/lang_${lang_affix}
-gmm_lang_test=${data_dir}/lang_test_${lang_affix}
-
-tree_dir=${data_dir}/chain${nnet3_affix}/tree${affix}
+gmm_lang=data/lang
+gmm_lang_test=data/lang_test
+tree_dir=data/chain${nnet3_affix}/tree${affix}
 
 # the 'lang' directory is created by this script.
 # If you create such a directory with a non-standard topology
 # you should probably name it differently.
-lang=${data_dir}/lang_chain_${lang_affix}
+lang=data/lang_chain
+
 
 for f in $train_data_dir/feats.scp \
     $lores_train_data_dir/feats.scp $gmm_dir/final.mdl \
@@ -228,5 +219,5 @@ if [ $stage -le 7 ]; then
     --extra-right-context-final 0 \
     --frames-per-chunk $frames_per_chunk \
     --nj $nj --cmd "$cmd" \
-    $dir/graph ${data_dir}/test $dir/decode_test || exit 1;
+    $dir/graph data/test $dir/decode_test || exit 1;
 fi
