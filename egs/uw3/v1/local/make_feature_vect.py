@@ -50,6 +50,10 @@ def get_scaled_image(im):
     nx = int(scale_size)
     ny = int(scale * sx)
     im = misc.imresize(im, (nx, ny))
+
+    noise = np.random.normal(2, 1,(nx, ny))
+    im = im - noise
+
     return im
 
 ### main ###
@@ -69,6 +73,7 @@ with open(data_list_path) as f:
 
         im = misc.imread(image_path, flatten = True)
         im_scale = get_scaled_image(im)
+
         if args.pad:
             pad = np.ones((args.scale_size, 10)) * 255
             im_data = np.hstack((pad, im_scale, pad))

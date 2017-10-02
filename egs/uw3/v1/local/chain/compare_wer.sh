@@ -3,14 +3,14 @@
 # this script is used for comparing decoding results between systems.
 # e.g. local/chain/compare_wer.sh exp/chain/cnn{1a,1b}
 
-# ./local/chain/compare_wer.sh exp_pad/chain/cnn1b/ exp_pad/chain/cnn1f/
-# System                          cnn1b     cnn1f
-# WER                              7.68      5.03
-# CER                              2.00      0.45
-# Final train prob              -0.0286   -0.0368
-# Final valid prob              -0.0704   -0.0398
-# Final train prob (xent)       -0.2737   -0.0879
-# Final valid prob (xent)       -0.4723   -0.0991
+# ./local/chain/compare_wer.sh exp/chain/cnn1a
+# System                          cnn1a
+# WER                              0.61
+# CER                              0.15
+# Final train prob              -0.0377
+# Final valid prob              -0.0380
+# Final train prob (xent)       -0.0830
+# Final valid prob (xent)       -0.0838
 
 if [ $# == 0 ]; then
   echo "Usage: $0: <dir1> [<dir2> ... ]"
