@@ -5,37 +5,28 @@ nj=20
 color=1
 data_dir=data
 exp_dir=exp
-augment=false
+augment=true
+
 . ./cmd.sh ## You'll want to change cmd.sh to something that will work on your system.
            ## This relates to the queue.
 . utils/parse_options.sh  # e.g. this parses the --stage option if supplied.
 
 if [ $stage -le 0 ]; then
+  # data preparation
   local/prepare_data.sh --nj $nj --dir $data_dir
 fi
-mkdir -p $data_dir/{train,test}/data
 
 if [ $stage -le 1 ]; then
-  local/make_feature_vect.py $data_dir/test --scale-size 40 | \
-    copy-feats --compress=true --compression-method=7 \
-    ark:- ark,scp:$data_dir/test/data/images.ark,$data_dir/test/feats.scp || exit 1
-  steps/compute_cmvn_stats.sh $data_dir/test || exit 1;
-
-  if [ $augment = true ]; then
-    # create a backup directory to store text, utt2spk and image.scp file
-    mkdir -p $data_dir/train/backup
-    mv $data_dir/train/text $data_dir/train/utt2spk $data_dir/train/images.scp $data_dir/train/backup/
-    local/augment_and_make_feature_vect.py $data_dir/train --scale-size 40 --vertical-shift 10 | \
-      copy-feats --compress=true --compression-method=7 \
-      ark:- ark,scp:$data_dir/train/data/images.ark,$data_dir/train/feats.scp || exit 1
-    utils/utt2spk_to_spk2utt.pl $data_dir/train/utt2spk > $data_dir/train/spk2utt
-  else
-    local/make_feature_vect.py $data_dir/train --scale-size 40 | \
-      copy-feats --compress=true --compression-method=7 \
-      ark:- ark,scp:$data_dir/train/data/images.ark,$data_dir/train/feats.scp || exit 1
-  fi
-  steps/compute_cmvn_stats.sh $data_dir/train || exit 1;
+  for f in test; do
+    local/extract_feature.sh --nj $nj --cmd $cmd \
+     --scale_size 40 \
+     --augment $augment \
+     $data_dir/$f		 
+  
+    steps/compute_cmvn_stats.sh $data_dir/$f || exit 1;
+  done
 fi
+exit 0
 
 numSilStates=4
 numStates=8
@@ -149,8 +140,11 @@ if [ $stage -le 12 ]; then
     $exp_dir/tri3_ali
 fi
 
+
+affix=_aug
+nnet3_affix=_shear
+
 affix=_1a
-nnet3_affix=
 if [ $stage -le 13 ]; then
   local/chain/run_cnn_1a.sh --stage 0 \
    --gmm tri3 \
