@@ -141,11 +141,8 @@ if [ $stage -le 12 ]; then
     $exp_dir/tri3_ali
 fi
 
-
 affix=_1a
 nnet3_affix=
-
-affix=_1a
 if [ $stage -le 13 ]; then
   local/chain/run_cnn_1a.sh --stage 0 \
    --gmm tri3 \

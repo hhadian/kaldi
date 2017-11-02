@@ -211,7 +211,6 @@ def image_augment(im, out_fh, image_id):
         # im_shift = vertical_shift(im, shift_setting[i])
         # data = np.transpose(im_shift, (1, 0))
         # data = np.divide(data, 255.0)
-        # new_scp_list.append(image_id + '_shift' + str(i + 1))
         # write_kaldi_matrix(out_fh, data, image_shift_id[i])
 
 
@@ -250,10 +249,10 @@ else:  # settings for without augmentation or test data
             image_path = line_vect[1]
             im = misc.imread(image_path)
             im_scaled = get_scaled_image(im)
-            im_contrast = contrast_normalization(im_scaled, 0.05, 0.2)
+            # im_contrast = contrast_normalization(im_scaled, 0.05, 0.2)
             # slant_degree = find_slant_project(im_contrast)
             # im_sheared = horizontal_shear(im_contrast, slant_degree)
             # im_padded = vertical_shift(im_scaled, 10)
-            data = np.transpose(im_contrast, (1, 0))
+            data = np.transpose(im_scaled, (1, 0))
             data = np.divide(data, 255.0)
             write_kaldi_matrix(out_fh, data, image_id)
