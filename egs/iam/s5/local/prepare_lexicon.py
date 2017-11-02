@@ -4,8 +4,8 @@ import argparse
 import os
 import sys
 
-parser = argparse.ArgumentParser(
-    description="""Creates the list of characters and wor                                 ds in lexicon""")
+parser = argparse.ArgumentParser(description="""Creates the list of characters
+                                 and words in lexicon""")
 parser.add_argument('database_path', type=str, help='path to train text file')
 parser.add_argument('test_text', type=str,
                     help='path to test text file to include it in lexicon')

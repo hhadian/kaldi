@@ -5,7 +5,7 @@ nj=20
 color=1
 data_dir=data
 exp_dir=exp
-augment=true
+augment=false
 
 . ./cmd.sh ## You'll want to change cmd.sh to something that will work on your system.
            ## This relates to the queue.
@@ -16,17 +16,18 @@ if [ $stage -le 0 ]; then
   local/prepare_data.sh --nj $nj --dir $data_dir
 fi
 
+
 if [ $stage -le 1 ]; then
-  for f in test; do
+  for f in train test; do
+    mkdir -p $data_dir/$f/data      
     local/extract_feature.sh --nj $nj --cmd $cmd \
-     --scale_size 40 \
-     --augment $augment \
+      --scale_size 40 \
+      --augment $augment \
      $data_dir/$f		 
   
     steps/compute_cmvn_stats.sh $data_dir/$f || exit 1;
   done
 fi
-exit 0
 
 numSilStates=4
 numStates=8
@@ -141,8 +142,8 @@ if [ $stage -le 12 ]; then
 fi
 
 
-affix=_aug
-nnet3_affix=_shear
+affix=_1a
+nnet3_affix=
 
 affix=_1a
 if [ $stage -le 13 ]; then
