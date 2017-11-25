@@ -12,7 +12,8 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE, SIG_DFL)
 
 parser = argparse.ArgumentParser(
-    description="""Generates and saves the feature vectors""")
+    description="""Generates and saves the feature vectors. Can perform 
+                   deslanting and image augmentation (vertical shift)""")
 parser.add_argument(
     'dir', type=str, help='directory of images.scp and is also output directory')
 parser.add_argument('--seg', type=str, default='1',
