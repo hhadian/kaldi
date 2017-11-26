@@ -16,7 +16,7 @@ fi
 mkdir -p $data_dir/{train,test}/data
 
 if [ $stage -le 1 ]; then
-  local/make_feature_vect.py $data_dir/test --scale-size 40 | \
+  local/make_feature.py $data_dir/test --scale-size 40 | \
     copy-feats --compress=true --compression-method=7 \
     ark:- ark,scp:$data_dir/test/data/images.ark,$data_dir/test/feats.scp || exit 1
   steps/compute_cmvn_stats.sh $data_dir/test || exit 1;
@@ -30,19 +30,16 @@ if [ $stage -le 1 ]; then
       ark:- ark,scp:$data_dir/train/data/images.ark,$data_dir/train/feats.scp || exit 1
     utils/utt2spk_to_spk2utt.pl $data_dir/train/utt2spk > $data_dir/train/spk2utt
   else
-    local/make_feature_vect.py $data_dir/train --scale-size 40 | \
+    local/make_feature.py $data_dir/train --scale-size 40 | \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:$data_dir/train/data/images.ark,$data_dir/train/feats.scp || exit 1
   fi
   steps/compute_cmvn_stats.sh $data_dir/train || exit 1;
 fi
 
-numSilStates=4
-numStates=8
-
 if [ $stage -le 2 ]; then
   local/prepare_dict.sh $data_dir/train/ $data_dir/test/ $data_dir/train/dict
-  utils/prepare_lang.sh --num-sil-states $numSilStates --num-nonsil-states $numStates \
+  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
     $data_dir/train/dict "<unk>" $data_dir/lang/temp $data_dir/lang
 fi
 

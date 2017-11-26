@@ -1,5 +1,11 @@
 #!/usr/bin/env python
 
+""" This module will be used for line image preprocessing. It
+    performs scaling. It will then write the raw pixel features in kaldi format.
+ 
+  Eg. local/make_feature.py data/train --scale-size 40
+"""
+
 import argparse
 import os
 import sys

@@ -1,5 +1,19 @@
 #!/bin/bash
-# This script loads the IAM handwritten dataset
+
+""" This script loads the IAM handwritten dataset, LOB corpora and Brown corpora.  
+    It calls local/process_data.py which  reads the downloaded data and creates particular
+    files like text, utt2spk, images.scp. It also calls utt2spk_to_spk2utt.pl which creates 
+    spk2utt from utt2spk.
+ Args:
+  nj: number of jobs.
+  dir: download directory.
+  
+  Eg. local/prepare_data.sh --nj $nj --dir data
+  Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
+      utt2spk file: 000_a01-000u-00 000
+      images.scp file: 000_a01-000u-00 data/download/lines/a01/a01-000u/a01-000u-00.png
+      spkutt file: 000 000_a01-000u-00 000_a01-000u-01 000_a01-000u-02 000_a01-000u-03
+"""
 
 stage=0
 nj=20

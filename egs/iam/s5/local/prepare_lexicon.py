@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 
+""" This module prepares lexicon.txt. It reads the data from text files 
+    and write all unique words in lexicon.txt file
+  Args:
+  $1: location of train tet file.
+  $2: location of test text file.
+  $3: location of dict directory.
+  
+  Eg. local/prepare_lexicon.py data/train data/test data/train/dict
+  Belleray B e l l e r a y
+  Belmondo B e l m o n d o
+  Ben B e n
+"""
+
 import argparse
 import os
 import sys
