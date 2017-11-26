@@ -46,7 +46,7 @@ if args.out_ark == '-':
 else:
     out_fh = open(args.out_ark,'wb')
 
-phone_dict = dict()# stores phoneID and phone mapping
+phone_dict = dict() #stores mapping from phoneID(int) to phone(char).
 phone_data_vect = phone_fh.read().strip().split("\n")
 for key_val in phone_data_vect:
   key_val = key_val.split(" ")
@@ -58,9 +58,8 @@ for key_val in word_data_vect:
   word_dict[key_val[1]] = key_val[0]
 unk_val = unk_fh.read().strip().split(" ")[0]
 
-utt_word_dict = dict()
-utt_phone_dict = dict()# stores utteranceID and phoneID
-unk_word_dict = dict()
+utt_word_dict = dict() #dict of dict, stores mapping from utteranceID(int) to words.
+utt_phone_dict = dict()
 count=0
 for line in input_fh:
   line_vect = line.strip().split("\t")
@@ -80,7 +79,7 @@ for line in input_fh:
     utt_phone_dict[uttID] = dict()
     utt_word_dict[uttID][count] = word
     utt_phone_dict[uttID][count] = phones
-  if word == unk_val: # get character sequence for unk
+  if word == unk_val: # get phone sequence for unk
     phone_key_vect = phones.split(" ")
     phone_val_vect = list()
     for pkey in phone_key_vect:
