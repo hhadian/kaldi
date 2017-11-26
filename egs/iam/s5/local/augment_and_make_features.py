@@ -1,4 +1,12 @@
 #!/usr/bin/env python
+
+""" This module will be used for line image preprocessing and augmentation. It
+    performs scaling, image deslanting, contrast normalization and augmentation.
+    It will then write the raw pixel features in kaldi format.
+ 
+  Eg. local/aug_make_feature.py data/train --scale-size 40 --vertical-shift 10
+"""
+
 import random
 import argparse
 import os
