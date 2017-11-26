@@ -1,14 +1,35 @@
 #!/usr/bin/env python
 
+""" This module will be used by scripts for open vocabulary setup.
+ If the hypothesis transcription contains <unk>, then it will replace 
+ the <unk> with the word predicted by <unk> model. It is currently 
+ supported only for triphone setup.
+
+ Args:
+  phones: File name of a file that contains the phones.txt, (symbol-table for phones).
+          phone and phoneID, Eg. a 217, phoneID of 'a' is 217. 
+  words: File name of a file that contains the words.txt, (symbol-table for words). 
+         word and wordID. Eg. ACCOUNTANCY 234, wordID of 'ACCOUNTANCY' is 234.
+  unk: ID of <unk>. Eg. 231
+  input-ark: file containing hypothesis transcription with <unk>
+  out-ark: file containing hypothesis transcription without <unk>
+  
+  Eg. local/unk_arc_post_to_transcription.py lang/phones.txt lang/words.txt data/lang/oov.int
+
+  Eg. hypothesis transcription: A move to <unk> mr. gaitskell.
+      converted transcription: A move to stop mr. gaitskell.
+
+"""
+
 import argparse
 import os
 import sys
 import numpy as np
 from scipy import misc
 parser = argparse.ArgumentParser(description="""uses phones to convert unk to word""")
-parser.add_argument('phones', type=str, help='phones and phonesID')
-parser.add_argument('words', type=str, help='word and wordID')
-parser.add_argument('unk', type=str, default='-', help='location of unk file')
+parser.add_argument('phones', type=str, help='File name of a file that contains the phones.txt. Format phone and phoneID')
+parser.add_argument('words', type=str, help='File name of a file that contains the words.txt. Format word and wordID.')
+parser.add_argument('unk', type=str, default='-', help='location of unk file. ID of <unk>. Eg. 231')
 parser.add_argument('--input-ark', type=str, default='-', help='where to read the input data')
 parser.add_argument('--out-ark', type=str, default='-', help='where to write the output data')
 args = parser.parse_args()

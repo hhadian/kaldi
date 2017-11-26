@@ -83,7 +83,7 @@ fi
 if [ $stage -le 7 ]; then
   utils/mkgraph.sh $data_dir/lang_test exp/tri exp/tri/graph
 
-  steps/decode.sh --nj $nj --cmd $cmd \exp/tri/graph $data_dir/test \
+  steps/decode.sh --nj $nj --cmd $cmd exp/tri/graph $data_dir/test \
     exp/tri/decode_test
 fi
 
