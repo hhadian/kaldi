@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 """ This module will be used by scripts for open vocabulary setup.
- If the hypothesis transcription contains <unk>, then it will replace 
- the <unk> with the word predicted by <unk> model. It is currently 
- supported only for triphone setup.
+ If the hypothesis transcription contains <unk>, then it will replace the 
+ <unk> with the word predicted by <unk> model by concatenating phones decoded 
+ from the unk-model. It is currently supported only for triphone setup.
 
  Args:
   phones: File name of a file that contains the phones.txt, (symbol-table for phones).
