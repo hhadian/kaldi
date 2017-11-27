@@ -9,7 +9,7 @@ if [ -f path.sh ]; then . ./path.sh; fi
 . parse_options.sh || exit 1;
 
 # Download dir
-dl_dir=$dir/download
+dl_dir=$dir
 download_url=http://www.tmbdev.net/ocrdata/uw3-lines-book.tgz
 data_dir=book
 

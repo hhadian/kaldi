@@ -2,7 +2,7 @@
 
 set -e -o pipefail
 
-stage=4
+stage=0
 nj=30
 
 # affix for exp dirs, e.g. it was _cleaned in tedlium.
