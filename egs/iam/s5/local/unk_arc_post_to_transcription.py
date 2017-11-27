@@ -27,12 +27,13 @@ import sys
 import numpy as np
 from scipy import misc
 parser = argparse.ArgumentParser(description="""uses phones to convert unk to word""")
-parser.add_argument('phones', type=str, help='File name of a file that contains the phones.txt. Format phone and phoneID')
-parser.add_argument('words', type=str, help='File name of a file that contains the words.txt. Format word and wordID.')
-parser.add_argument('unk', type=str, default='-', help='location of unk file. ID of <unk>. Eg. 231')
+parser.add_argument('phones', type=str, help='File name of a file that contains the symbol-table for phones. Each line must be: <phone> <phoneID>')
+parser.add_argument('words', type=str, help='File name of a file that contains the symbol-table for words. Each line must be: <word> <word-id>')
+parser.add_argument('unk', type=str, default='-', help='File name of a file that contains the ID of <unk>. The content must be: <oov-id>, e.g. 231')
 parser.add_argument('--input-ark', type=str, default='-', help='where to read the input data')
 parser.add_argument('--out-ark', type=str, default='-', help='where to write the output data')
 args = parser.parse_args()
+
 ### main ###
 phone_fh = open(args.phones, 'r')
 word_fh = open(args.words, 'r')
@@ -46,21 +47,25 @@ if args.out_ark == '-':
 else:
     out_fh = open(args.out_ark,'wb')
 
-phone_dict = dict() #stores mapping from phoneID(int) to phone(char).
+phone_dict = dict() #stores mapping from phoneID(int) to phone(char)
 phone_data_vect = phone_fh.read().strip().split("\n")
+
 for key_val in phone_data_vect:
   key_val = key_val.split(" ")
   phone_dict[key_val[1]] = key_val[0]
+
 word_dict = dict()
 word_data_vect = word_fh.read().strip().split("\n")
+
 for key_val in word_data_vect:
   key_val = key_val.split(" ")
   word_dict[key_val[1]] = key_val[0]
 unk_val = unk_fh.read().strip().split(" ")[0]
 
-utt_word_dict = dict() #dict of dict, stores mapping from utteranceID(int) to words.
+utt_word_dict = dict() #dict of dict, stores mapping from utteranceID(int) to words
 utt_phone_dict = dict()
-count=0
+
+utt_word_count=0
 for line in input_fh:
   line_vect = line.strip().split("\t")
   if len(line_vect) < 6:
@@ -71,33 +76,34 @@ for line in input_fh:
   word = line_vect[4]
   phones = line_vect[5]
   if uttID in utt_word_dict.keys():
-    utt_word_dict[uttID][count] = word
-    utt_phone_dict[uttID][count] = phones
+    utt_word_dict[uttID][utt_word_count] = word
+    utt_phone_dict[uttID][utt_word_count] = phones
   else:
-    count = 0
+    utt_word_count = 0
     utt_word_dict[uttID] = dict()
     utt_phone_dict[uttID] = dict()
-    utt_word_dict[uttID][count] = word
-    utt_phone_dict[uttID][count] = phones
+    utt_word_dict[uttID][utt_word_count] = word
+    utt_phone_dict[uttID][utt_word_count] = phones
+
   if word == unk_val: # get phone sequence for unk
     phone_key_vect = phones.split(" ")
     phone_val_vect = list()
     for pkey in phone_key_vect:
-      phone_val_vect.append(phone_dict[pkey])
+      phone_val_vect.append(phone_dict[pkey]) #get phone sequence from unk-model
     phone_2_word = list()
     for phone_val in phone_val_vect:
       phone_2_word.append(phone_val.split('_')[0])
-    phone_2_word = ''.join(phone_2_word)
-    utt_word_dict[uttID][count] = phone_2_word
+    phone_2_word = ''.join(phone_2_word) #concatnate phone sequence
+    utt_word_dict[uttID][utt_word_count] = phone_2_word
   else:
     if word == '0':
       word_val = ' '
     else:
       word_val = word_dict[word]
-    utt_word_dict[uttID][count] = word_val
-  count += 1
+    utt_word_dict[uttID][utt_word_count] = word_val
+  utt_word_count += 1
 
-transcription = ""
+transcription = "" #output transcription
 for key in sorted(utt_word_dict.iterkeys()):
   transcription = key
   for index in sorted(utt_word_dict[key].iterkeys()):
