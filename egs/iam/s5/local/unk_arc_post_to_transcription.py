@@ -10,42 +10,40 @@
           phone and phoneID, Eg. a 217, phoneID of 'a' is 217. 
   words: File name of a file that contains the words.txt, (symbol-table for words). 
          word and wordID. Eg. ACCOUNTANCY 234, wordID of 'ACCOUNTANCY' is 234.
-  unk: ID of <unk>. Eg. 231
-  input-ark: file containing hypothesis transcription with <unk>
-  out-ark: file containing hypothesis transcription without <unk>
+  unk: ID of <unk>. Eg. 231.
+  bestarcpost: A file in arc-post format, which is a list of timing info and posterior 
+               of arcs along the one-best path from the lattice.
+               E.g. 506_m01-049-00 8 12  1 7722  282 272 288 231
+                    <utterance-id> <start-frame> <num-frames> <posterior> <word> [<ali>] [<phone1> <phone2>...]
+  output-text: File containing hypothesis transcription with <unk> recognized by the unk-model.
+               E.g. A move to stop mr. gaitskell.
   
   Eg. local/unk_arc_post_to_transcription.py lang/phones.txt lang/words.txt data/lang/oov.int
 
-  Eg. hypothesis transcription: A move to <unk> mr. gaitskell.
-      converted transcription: A move to stop mr. gaitskell.
-
 """
-
 import argparse
 import os
 import sys
-import numpy as np
-from scipy import misc
 parser = argparse.ArgumentParser(description="""uses phones to convert unk to word""")
 parser.add_argument('phones', type=str, help='File name of a file that contains the symbol-table for phones. Each line must be: <phone> <phoneID>')
 parser.add_argument('words', type=str, help='File name of a file that contains the symbol-table for words. Each line must be: <word> <word-id>')
 parser.add_argument('unk', type=str, default='-', help='File name of a file that contains the ID of <unk>. The content must be: <oov-id>, e.g. 231')
-parser.add_argument('--input-ark', type=str, default='-', help='where to read the input data')
-parser.add_argument('--out-ark', type=str, default='-', help='where to write the output data')
+parser.add_argument('--bestarcpost', type=str, default='-', help='A file in arc-post format, which is a list of timing info and posterior of arcs along the one-best path from the lattice')
+parser.add_argument('--output-text', type=str, default='-', help='File containing hypothesis transcription with <unk> recognized by the unk-model')
 args = parser.parse_args()
 
 ### main ###
-phone_fh = open(args.phones, 'r')
+phone_fh = open(args.phones, 'r') #create file handles 
 word_fh = open(args.words, 'r')
 unk_fh = open(args.unk,'r')
-if args.input_ark == '-':
+if args.bestarcpost == '-':
     input_fh = sys.stdin
 else:
-    input_fh = open(args.input_ark,'r')
-if args.out_ark == '-':
+    input_fh = open(args.bestarcpost,'r')
+if args.output_text == '-':
     out_fh = sys.stdout
 else:
-    out_fh = open(args.out_ark,'wb')
+    out_fh = open(args.output_text,'wb')
 
 phone_dict = dict() #stores mapping from phoneID(int) to phone(char)
 phone_data_vect = phone_fh.read().strip().split("\n")
@@ -62,28 +60,18 @@ for key_val in word_data_vect:
   word_dict[key_val[1]] = key_val[0]
 unk_val = unk_fh.read().strip().split(" ")[0]
 
-utt_word_dict = dict() #dict of dict, stores mapping from utteranceID(int) to words
-utt_phone_dict = dict()
-
-utt_word_count=0
+utt_word_dict = dict() #dict of list, stores mapping from utteranceID(int) to words(str)
 for line in input_fh:
   line_vect = line.strip().split("\t")
   if len(line_vect) < 6:
-    print "IndexError"
+    print "Error: Invalid line in the acr-post file"
     print line_vect
     continue
   uttID = line_vect[0]
   word = line_vect[4]
   phones = line_vect[5]
-  if uttID in utt_word_dict.keys():
-    utt_word_dict[uttID][utt_word_count] = word
-    utt_phone_dict[uttID][utt_word_count] = phones
-  else:
-    utt_word_count = 0
-    utt_word_dict[uttID] = dict()
-    utt_phone_dict[uttID] = dict()
-    utt_word_dict[uttID][utt_word_count] = word
-    utt_phone_dict[uttID][utt_word_count] = phones
+  if uttID not in utt_word_dict.keys():
+    utt_word_dict[uttID] = list()
 
   if word == unk_val: # get phone sequence for unk
     phone_key_vect = phones.split(" ")
@@ -92,21 +80,19 @@ for line in input_fh:
       phone_val_vect.append(phone_dict[pkey]) #get phone sequence from unk-model
     phone_2_word = list()
     for phone_val in phone_val_vect:
-      phone_2_word.append(phone_val.split('_')[0])
+      phone_2_word.append(phone_val.split('_')[0]) # removing the world-position markers(e.g. _B)
     phone_2_word = ''.join(phone_2_word) #concatnate phone sequence
-    utt_word_dict[uttID][utt_word_count] = phone_2_word
+    utt_word_dict[uttID].append(phone_2_word) #store word from unk-model
   else:
-    if word == '0':
+    if word == '0': #store space/silence
       word_val = ' '
     else:
       word_val = word_dict[word]
-    utt_word_dict[uttID][utt_word_count] = word_val
-  utt_word_count += 1
+    utt_word_dict[uttID].append(word_val) #store word from 1best-arc-post
 
 transcription = "" #output transcription
-for key in sorted(utt_word_dict.iterkeys()):
-  transcription = key
-  for index in sorted(utt_word_dict[key].iterkeys()):
-    value = utt_word_dict[key][index]
-    transcription = transcription + " " + value
+for utt_key in sorted(utt_word_dict.iterkeys()):
+  transcription = utt_key
+  for word in utt_word_dict[utt_key]:
+    transcription = transcription + " " + word
   out_fh.write(transcription + '\n')
