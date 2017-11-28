@@ -39,7 +39,7 @@ fi
 
 if [ $stage -le 2 ]; then
   local/prepare_dict.sh $data_dir/train/ $data_dir/test/ $data_dir/train/dict
-  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
+  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --sil-prob 0.95 \
     $data_dir/train/dict "<unk>" $data_dir/lang/temp $data_dir/lang
 fi
 
