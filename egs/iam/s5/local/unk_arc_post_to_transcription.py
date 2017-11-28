@@ -82,13 +82,13 @@ for line in input_fh:
   if uttID not in utt_word_dict.keys():
     utt_word_dict[uttID] = list()
 
-  if word == unk_val: # get phone sequence for unk
-    phone_key_vect = phones.split(" ")
-    phone_val_vect = list()
-    for pkey in phone_key_vect:
-      phone_val_vect.append(phone_dict[pkey]) #Get the 1best phone sequence given by the unk-model
+  if word == unk_val: #Get the 1best phone sequence given by the unk-model
+    phone_id_seq = phones.split(" ")
+    phone_seq = list()
+    for pkey in phone_id_seq:
+      phone_seq.append(phone_dict[pkey]) #Convert the phone-id sequence to a phone sequence.
     phone_2_word = list()
-    for phone_val in phone_val_vect:
+    for phone_val in phone_seq:
       phone_2_word.append(phone_val.split('_')[0]) # removing the world-position markers(e.g. _B)
     phone_2_word = ''.join(phone_2_word) #concatnate phone sequence
     utt_word_dict[uttID].append(phone_2_word) #store word from unk-model
