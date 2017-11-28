@@ -45,7 +45,7 @@ args = parser.parse_args()
 phone_fh = open(args.phones, 'r') #create file handles 
 word_fh = open(args.words, 'r')
 unk_fh = open(args.unk,'r')
-if args.bestarcpost == '-':
+if args.1best_arc_post == '-':
     input_fh = sys.stdin
 else:
     input_fh = open(args.1best_arc_post,'r')
