@@ -34,7 +34,7 @@ parser.add_argument('words', type=str, help='File name of a file that contains t
                     'symbol-table for words. Each line must be: <word> <word-id>')
 parser.add_argument('unk', type=str, default='-', help='File name of a file that'
                     'contains the ID of <unk>. The content must be: <oov-id>, e.g. 231')
-parser.add_argument('--1best-arc-post', type=str, default='-', help='A file in arc-post'
+parser.add_argument('--one-best-arc-post', type=str, default='-', help='A file in arc-post'
                     'format, which is a list of timing info and posterior of arcs'
                     'along the one-best path from the lattice')
 parser.add_argument('--output-text', type=str, default='-', help='File containing'
@@ -45,10 +45,10 @@ args = parser.parse_args()
 phone_fh = open(args.phones, 'r') #create file handles 
 word_fh = open(args.words, 'r')
 unk_fh = open(args.unk,'r')
-if args.1best_arc_post == '-':
+if args.one_best_arc_post == '-':
     input_fh = sys.stdin
 else:
-    input_fh = open(args.1best_arc_post,'r')
+    input_fh = open(args.one_best_arc_post,'r')
 if args.output_text == '-':
     out_fh = sys.stdout
 else:
