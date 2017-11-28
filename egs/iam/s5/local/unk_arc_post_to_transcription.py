@@ -28,12 +28,17 @@ import argparse
 import os
 import sys
 parser = argparse.ArgumentParser(description="""uses phones to convert unk to word""")
-parser.add_argument('phones', type=str, help='File name of a file that contains the symbol-table for phones. Each line must be: <phone> <phoneID>')
-parser.add_argument('words', type=str, help='File name of a file that contains the symbol-table for words. Each line must be: <word> <word-id>')
-parser.add_argument('unk', type=str, default='-', help='File name of a file that contains the ID of <unk>. The content must be: <oov-id>, e.g. 231')
-parser.add_argument('--bestarcpost', type=str, default='-', help='A file in arc-post format, which is a list of timing info and posterior of arcs 
-                                                                  along the one-best path from the lattice')
-parser.add_argument('--output-text', type=str, default='-', help='File containing hypothesis transcription with <unk> recognized by the unk-model')
+parser.add_argument('phones', type=str, help='File name of a file that contains the
+                     symbol-table for phones. Each line must be: <phone> <phoneID>')
+parser.add_argument('words', type=str, help='File name of a file that contains the
+                     symbol-table for words. Each line must be: <word> <word-id>')
+parser.add_argument('unk', type=str, default='-', help='File name of a file that
+                    contains the ID of <unk>. The content must be: <oov-id>, e.g. 231')
+parser.add_argument('--bestarcpost', type=str, default='-', help='A file in arc-post
+                    format, which is a list of timing info and posterior of arcs
+                    along the one-best path from the lattice')
+parser.add_argument('--output-text', type=str, default='-', help='File containing
+                    hypothesis transcription with <unk> recognized by the unk-model')
 args = parser.parse_args()
 
 ### main ###
