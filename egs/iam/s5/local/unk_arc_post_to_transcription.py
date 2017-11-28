@@ -11,7 +11,7 @@
   words: File name of a file that contains the words.txt, (symbol-table for words). 
          word and wordID. Eg. ACCOUNTANCY 234, wordID of 'ACCOUNTANCY' is 234.
   unk: ID of <unk>. Eg. 231.
-  1best-arc-post: A file in arc-post format, which is a list of timing info and posterior
+  one-best-arc-post: A file in arc-post format, which is a list of timing info and posterior
                of arcs along the one-best path from the lattice.
                E.g. 506_m01-049-00 8 12  1 7722  282 272 288 231
                     <utterance-id> <start-frame> <num-frames> <posterior> <word> [<ali>] 
