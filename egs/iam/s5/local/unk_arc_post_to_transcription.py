@@ -11,7 +11,7 @@
   words: File name of a file that contains the words.txt, (symbol-table for words). 
          word and wordID. Eg. ACCOUNTANCY 234, wordID of 'ACCOUNTANCY' is 234.
   unk: ID of <unk>. Eg. 231.
-  bestarcpost: A file in arc-post format, which is a list of timing info and posterior
+  1best-arc-post: A file in arc-post format, which is a list of timing info and posterior
                of arcs along the one-best path from the lattice.
                E.g. 506_m01-049-00 8 12  1 7722  282 272 288 231
                     <utterance-id> <start-frame> <num-frames> <posterior> <word> [<ali>] 
@@ -34,7 +34,7 @@ parser.add_argument('words', type=str, help='File name of a file that contains t
                      symbol-table for words. Each line must be: <word> <word-id>')
 parser.add_argument('unk', type=str, default='-', help='File name of a file that
                     contains the ID of <unk>. The content must be: <oov-id>, e.g. 231')
-parser.add_argument('--bestarcpost', type=str, default='-', help='A file in arc-post
+parser.add_argument('--1best-arc-post', type=str, default='-', help='A file in arc-post
                     format, which is a list of timing info and posterior of arcs
                     along the one-best path from the lattice')
 parser.add_argument('--output-text', type=str, default='-', help='File containing
@@ -48,7 +48,7 @@ unk_fh = open(args.unk,'r')
 if args.bestarcpost == '-':
     input_fh = sys.stdin
 else:
-    input_fh = open(args.bestarcpost,'r')
+    input_fh = open(args.1best_arc_post,'r')
 if args.output_text == '-':
     out_fh = sys.stdout
 else:
@@ -72,8 +72,8 @@ unk_val = unk_fh.read().strip().split(" ")[0]
 utt_word_dict = dict() #dict of list, stores mapping from utteranceID(int) to words(str)
 for line in input_fh:
   line_vect = line.strip().split("\t")
-  if len(line_vect) < 6: #check for bestarcpost output
-    print "Error: Invalid line in the acr-post file"
+  if len(line_vect) < 6: #check for 1best-arc-post output
+    print "Error: Invalid line in the 1best-arc-post file"
     print line_vect
     continue
   uttID = line_vect[0]
@@ -86,7 +86,7 @@ for line in input_fh:
     phone_key_vect = phones.split(" ")
     phone_val_vect = list()
     for pkey in phone_key_vect:
-      phone_val_vect.append(phone_dict[pkey]) #get phone sequence from unk-model
+      phone_val_vect.append(phone_dict[pkey]) #Get the 1best phone sequence given by the unk-model
     phone_2_word = list()
     for phone_val in phone_val_vect:
       phone_2_word.append(phone_val.split('_')[0]) # removing the world-position markers(e.g. _B)
