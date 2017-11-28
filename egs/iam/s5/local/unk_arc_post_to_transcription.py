@@ -42,37 +42,37 @@ parser.add_argument('--output-text', type=str, default='-', help='File containin
 args = parser.parse_args()
 
 ### main ###
-phone_fh = open(args.phones, 'r') #create file handles 
-word_fh = open(args.words, 'r')
-unk_fh = open(args.unk,'r')
+phone_handle = open(args.phones, 'r') # Create file handles 
+word_handle = open(args.words, 'r')
+unk_handle = open(args.unk,'r')
 if args.one_best_arc_post == '-':
-    input_fh = sys.stdin
+    arc_post_handle = sys.stdin
 else:
-    input_fh = open(args.one_best_arc_post,'r')
+    arc_post_handle = open(args.one_best_arc_post,'r')
 if args.output_text == '-':
-    out_fh = sys.stdout
+    output_text_handle = sys.stdout
 else:
-    out_fh = open(args.output_text,'wb')
+    output_text_handle = open(args.output_text,'wb')
 
-phone_dict = dict() #stores mapping from phoneID(int) to phone(char)
-phone_data_vect = phone_fh.read().strip().split("\n")
+id2phone = dict() # Stores the mapping from phone_id (int) to phone (char)
+phones_data = phone_handle.read().strip().split("\n")
 
-for key_val in phone_data_vect:
+for key_val in phones_data:
   key_val = key_val.split(" ")
-  phone_dict[key_val[1]] = key_val[0]
+  id2phone[key_val[1]] = key_val[0]
 
 word_dict = dict()
-word_data_vect = word_fh.read().strip().split("\n")
+word_data_vect = word_handle.read().strip().split("\n")
 
 for key_val in word_data_vect:
   key_val = key_val.split(" ")
   word_dict[key_val[1]] = key_val[0]
-unk_val = unk_fh.read().strip().split(" ")[0]
+unk_val = unk_handle.read().strip().split(" ")[0]
 
-utt_word_dict = dict() #dict of list, stores mapping from utteranceID(int) to words(str)
-for line in input_fh:
+utt_word_dict = dict() # Dict of list, stores mapping from utteranceID(int) to words(str)
+for line in arc_post_handle:
   line_vect = line.strip().split("\t")
-  if len(line_vect) < 6: #check for 1best-arc-post output
+  if len(line_vect) < 6: # Check for 1best-arc-post output
     print "Error: Invalid line in the 1best-arc-post file"
     print line_vect
     continue
@@ -82,26 +82,26 @@ for line in input_fh:
   if utt_id not in utt_word_dict.keys():
     utt_word_dict[utt_id] = list()
 
-  if word == unk_val: #Get the 1best phone sequence given by the unk-model
+  if word == unk_val: # Get the 1best phone sequence given by the unk-model
     phone_id_seq = phones.split(" ")
     phone_seq = list()
     for pkey in phone_id_seq:
-      phone_seq.append(phone_dict[pkey]) #Convert the phone-id sequence to a phone sequence.
+      phone_seq.append(id2phone[pkey]) # Convert the phone-id sequence to a phone sequence.
     phone_2_word = list()
     for phone_val in phone_seq:
-      phone_2_word.append(phone_val.split('_')[0]) # removing the world-position markers(e.g. _B)
-    phone_2_word = ''.join(phone_2_word) #concatnate phone sequence
-    utt_word_dict[utt_id].append(phone_2_word) #store word from unk-model
+      phone_2_word.append(phone_val.split('_')[0]) # Removing the world-position markers(e.g. _B)
+    phone_2_word = ''.join(phone_2_word) # Concatnate phone sequence
+    utt_word_dict[utt_id].append(phone_2_word) # Store word from unk-model
   else:
-    if word == '0': #store space/silence
+    if word == '0': # Store space/silence
       word_val = ' '
     else:
       word_val = word_dict[word]
-    utt_word_dict[utt_id].append(word_val) #store word from 1best-arc-post
+    utt_word_dict[utt_id].append(word_val) # Store word from 1best-arc-post
 
-transcription = "" #output transcription
+transcription = "" # Output transcription
 for utt_key in sorted(utt_word_dict.iterkeys()):
   transcription = utt_key
   for word in utt_word_dict[utt_key]:
     transcription = transcription + " " + word
-  out_fh.write(transcription + '\n')
+  output_text_handle.write(transcription + '\n')
