@@ -76,11 +76,11 @@ for line in input_fh:
     print "Error: Invalid line in the 1best-arc-post file"
     print line_vect
     continue
-  uttID = line_vect[0]
+  utt_id = line_vect[0]
   word = line_vect[4]
   phones = line_vect[5]
-  if uttID not in utt_word_dict.keys():
-    utt_word_dict[uttID] = list()
+  if utt_id not in utt_word_dict.keys():
+    utt_word_dict[utt_id] = list()
 
   if word == unk_val: #Get the 1best phone sequence given by the unk-model
     phone_id_seq = phones.split(" ")
@@ -91,13 +91,13 @@ for line in input_fh:
     for phone_val in phone_seq:
       phone_2_word.append(phone_val.split('_')[0]) # removing the world-position markers(e.g. _B)
     phone_2_word = ''.join(phone_2_word) #concatnate phone sequence
-    utt_word_dict[uttID].append(phone_2_word) #store word from unk-model
+    utt_word_dict[utt_id].append(phone_2_word) #store word from unk-model
   else:
     if word == '0': #store space/silence
       word_val = ' '
     else:
       word_val = word_dict[word]
-    utt_word_dict[uttID].append(word_val) #store word from 1best-arc-post
+    utt_word_dict[utt_id].append(word_val) #store word from 1best-arc-post
 
 transcription = "" #output transcription
 for utt_key in sorted(utt_word_dict.iterkeys()):
