@@ -2,7 +2,6 @@
 
 stage=0
 nj=30
-data_download=data/download
 
 . ./path.sh
 . ./cmd.sh ## You'll want to change cmd.sh to something that will work on your system.
@@ -11,13 +10,13 @@ data_download=data/download
 
 if [ $stage -le 0 ]; then
   # Data preparation
-  local/prepare_data.sh --dir $data_download
+  local/prepare_data.sh --dir data --download-dir data/download
 fi
 
 mkdir -p data/{train,test}/data
 if [ $stage -le 1 ]; then
   for f in train test; do
-    local/make_feature_vect.py --scale-size 40 --color 1 --pad true $data_download/$f | \
+    local/make_features.py --scale-size 40 --color 1 --pad true data/$f | \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:data/$f/data/images.ark,data/$f/feats.scp || exit 1
 
@@ -34,8 +33,8 @@ if [ $stage -le 2 ]; then
 fi
 
 if [ $stage -le 3 ]; then
-  mkdir data/lang_test
-  cp -R data/lang/ data/lang_test/
+  mkdir -p data/lang_test
+  cp -R data/lang/. data/lang_test/
 
   cp data/train/text data/train/text_copy
   cat data/test/text | awk '{ for(i=2;i<=NF;i++) print $i;}' | sort -u >test_words.txt

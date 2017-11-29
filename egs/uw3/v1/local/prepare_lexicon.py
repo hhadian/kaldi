@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import argparse
 import os
@@ -25,17 +25,16 @@ with open(text_path) as f:
       entry = entry.replace("#", "<HASH>")
       lex[line_vect[i]] = entry
 
-if args.test_text > 1:
-  text_path = os.path.join(args.test_text,'text')
-  with open(text_path) as f:
-    for line in f:
-      line = line.strip()
-      line_vect = line.split(' ')
-      for i in range(1,len(line_vect)):
-        characters = list(line_vect[i])
-        entry = " ".join(characters)
-        entry = entry.replace("#", "<HASH>")
-        lex[line_vect[i]] = entry
+text_path = os.path.join(args.test_text,'text')
+with open(text_path) as f:
+  for line in f:
+    line = line.strip()
+    line_vect = line.split(' ')
+    for i in range(1,len(line_vect)):
+      characters = list(line_vect[i])
+      entry = " ".join(characters)
+      entry = entry.replace("#", "<HASH>")
+      lex[line_vect[i]] = entry
 
 lex_file = os.path.join(args.dir, 'lexicon.txt')
 lex_fh = open(lex_file, 'w+')
