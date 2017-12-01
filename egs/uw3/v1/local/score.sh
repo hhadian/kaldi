@@ -22,6 +22,8 @@ if [ $# -ne 3 ]; then
   echo " Options:"
   echo "    --cmd (run.pl|queue.pl...)      # specify how to run the sub-processes."
   echo "    --stage (0|1|2)                 # start scoring script from part-way through."
+  echo "                                    # cer is alway from stage 2."
+  echo "                                    # first stages are cer are already done in wer"
   echo "    --decode_mbr (true/false)       # maximum bayes risk decoding (confusion network)."
   echo "    --min_lmwt <int>                # minumum LM-weight for lattice rescoring "
   echo "    --max_lmwt <int>                # maximum LM-weight for lattice rescoring "
@@ -34,5 +36,5 @@ dir=$3
 
 scoring_opts="--cmd $cmd --decode_mbr $decode_mbr --min-lmwt $min_lmwt --max-lmwt $max_lmwt"
 
-steps/scoring/score_kaldi_wer.sh $scoring_opts --stage 0 $data $lang_or_graph $dir
+steps/scoring/score_kaldi_wer.sh $scoring_opts --stage $stage $data $lang_or_graph $dir
 steps/scoring/score_kaldi_cer.sh $scoring_opts --stage 2 $data $lang_or_graph $dir

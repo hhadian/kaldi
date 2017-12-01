@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Copyright 2017 (Author: Chun Chieh Chang)
+
 # This scripts loads the UW3 dataset
 
 dir=data

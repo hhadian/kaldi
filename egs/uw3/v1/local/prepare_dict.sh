@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+# Copyright 2017 (Author: Chun Chieh Chang)
+
 train_text=$1
 test_text=$2
 dir=$3
