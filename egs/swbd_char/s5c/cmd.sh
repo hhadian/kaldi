@@ -1,0 +1,1 @@
+../../swbd/s5c/cmd.sh

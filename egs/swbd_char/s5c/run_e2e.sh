@@ -1,0 +1,1 @@
+../../swbd/s5c/run_e2e.sh

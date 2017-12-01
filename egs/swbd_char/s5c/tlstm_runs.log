@@ -1,0 +1,152 @@
+
+################ m5QGu #################
+run-id: m5QGu
+Wed Oct 4 15:24:05 EDT 2017
+local/chain/run_e2e_lstm_biphone.sh --affix _ep4_dim900_nommi2_0.2xL2 --num-epochs 4 --no-mmi-percent 2 --dim 900 --topo-affix _TwoPdf --topo-opts --type 2pdf --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch_size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run m5QGu, dir = exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_TwoPdf_dataEx1-shared-tr1sl1
+
+################ jvBKJ #################
+run-id: jvBKJ
+Wed Oct 4 15:25:56 EDT 2017
+local/chain/run_e2e_lstm_biphone.sh --affix _ep4_dim900_nommi2_0.2xL2 --num-epochs 4 --no-mmi-percent 2 --dim 900 --topo-affix _TwoPdf --topo-opts --type 2pdf --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch_size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run jvBKJ, dir = exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_TwoPdf_sharedT1S1
+
+################ Ko6WY #################
+run-id: Ko6WY
+Wed Oct 4 20:17:42 EDT 2017
+local/chain/run_e2e_lstm_biphone.sh --affix _ep4_dim900_nommi2_0.2xL2 --num-epochs 4 --no-mmi-percent 2 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch_size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run Ko6WY, dir = exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_chain_sharedT1S1
+Run Ko6WY done. Date: Fri Oct  6 08:59:21 EDT 2017. Results:
+%WER 17.9 | 4459 42989 | 84.4 11.4 4.2 2.3 17.9 55.2 | exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_0.0/eval2000_hires.ctm.filt.sys
+%WER 12.3 | 1831 21395 | 89.2 7.9 2.8 1.6 12.3 47.6 | exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_0.0/eval2000_hires.ctm.swbd.filt.sys
+%WER 23.3 | 2628 21594 | 79.9 14.8 5.3 3.2 23.3 60.2 | exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_9_0.5/eval2000_hires.ctm.callhm.filt.sys
+# local/chain/compare_wer_general.sh exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_chain_sharedT1S1
+# System                exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi2_0.2xL2_chain_sharedT1S1
+# WER on train_dev(tg)      15.59
+# WER on train_dev(fg)      14.34
+# WER on eval2000(tg)        17.9
+# WER on eval2000(fg)        16.2
+# Final train prob         -0.803
+# Final valid prob         -0.837
+# Final train prob (xent)         0.000
+# Final valid prob (xent)        0.0000
+
+################ EsEMq #################
+run-id: EsEMq
+Fri Oct 6 14:15:07 EDT 2017
+local/chain/run_e2e_lstm_biphone.sh --affix _ep4_dim900_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 4 --no-mmi-percent 0 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch_size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run EsEMq, dir = exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+
+################ Lz1wf #################
+run-id: Lz1wf
+Sat Oct 7 02:57:32 EDT 2017
+local/chain/run_e2e_lstm.sh --affix _ep4_dim950_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 4 --no-mmi-percent 0 --dim 950 --topo-affix _1pdf --topo-opts --type 1pdf --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch_size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+
+################ T7bCi #################
+run-id: T7bCi
+Sat Oct 7 02:59:05 EDT 2017
+local/chain/run_e2e_lstm.sh --affix _ep4_dim950_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 4 --no-mmi-percent 0 --dim 950 --topo-affix _1pdf --topo-opts --type 1pdf --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run T7bCi, dir = exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1
+
+################ ueSsk #################
+run-id: ueSsk
+Sat Oct 7 02:59:26 EDT 2017
+local/chain/run_e2e_lstm.sh --affix _ep4_dim950_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 4 --no-mmi-percent 0 --dim 950 --topo-affix _1pdf --topo-opts --type 1pdf --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 10
+Run ueSsk, dir = exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1
+
+################ E1X6k #################
+run-id: E1X6k
+Sat Oct 7 12:00:08 EDT 2017
+local/chain/run_e2e_lstm.sh --affix _ep4_dim950_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 4 --no-mmi-percent 0 --dim 950 --topo-affix _1pdf --topo-opts --type 1pdf --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run E1X6k, dir = exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1
+Run EsEMq done. Date: Sun Oct  8 03:14:47 EDT 2017. Results:
+%WER 17.4 | 4459 42989 | 84.6 11.2 4.2 2.1 17.4 54.7 | exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_0.5/eval2000_hires.ctm.filt.sys
+%WER 12.2 | 1831 21395 | 89.3 7.8 2.9 1.5 12.2 47.8 | exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_0.0/eval2000_hires.ctm.swbd.filt.sys
+%WER 22.6 | 2628 21594 | 80.0 14.5 5.5 2.6 22.6 59.3 | exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_1.0/eval2000_hires.ctm.callhm.filt.sys
+# local/chain/compare_wer_general.sh exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+# System                exp/chain/e2e_tlstm_biphone_ep4_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+# WER on train_dev(tg)      15.62
+# WER on train_dev(fg)      14.30
+# WER on eval2000(tg)        17.4
+# WER on eval2000(fg)        15.9
+# Final train prob         -0.807
+# Final valid prob         -0.837
+# Final train prob (xent)         0.000
+# Final valid prob (xent)        0.0000
+
+################ iPXue #################
+run-id: iPXue
+Sun Oct 8 21:59:35 EDT 2017
+local/chain/run_e2e_lstm.sh --affix _ep4_dim950_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 4 --no-mmi-percent 0 --dim 950 --topo-affix _1pdf --topo-opts --type 1pdf --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 13 --train-stage 131
+Run iPXue, dir = exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1
+Run iPXue done. Date: Mon Oct  9 08:46:08 EDT 2017. Results:
+%WER 21.0 | 4459 42989 | 81.1 13.1 5.8 2.1 21.0 58.6 | exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_8_0.0/eval2000_hires.ctm.filt.sys
+%WER 14.6 | 1831 21395 | 86.7 9.1 4.1 1.4 14.6 51.6 | exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_9_0.0/eval2000_hires.ctm.swbd.filt.sys
+%WER 27.2 | 2628 21594 | 75.3 16.8 7.9 2.6 27.2 63.4 | exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_8_1.0/eval2000_hires.ctm.callhm.filt.sys
+# local/chain/compare_wer_general.sh exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1
+# System                exp/chain/e2e_tlstm_ep4_dim950_nommi0_0.2xL2_eqAl0_1pdf_sharedT1S1
+# WER on train_dev(tg)      19.03
+# WER on train_dev(fg)      17.77
+# WER on eval2000(tg)        21.0
+# WER on eval2000(fg)        19.4
+# Final train prob         -0.840
+# Final valid prob         -0.874
+# Final train prob (xent)         0.000
+# Final valid prob (xent)        0.0000
+
+################ ijoYN #################
+run-id: ijoYN
+Tue Oct 17 02:21:52 EDT 2017
+local/chain/run_e2e_lstm.sh --affix --train-set train_nodup_seg_hires _noSP_ep12_dim900_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 12 --no-mmi-percent 0 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+
+################ oIgPm #################
+run-id: oIgPm
+Tue Oct 17 02:26:42 EDT 2017
+local/chain/run_e2e_lstm.sh --affix --train-set train_nodup_seg_hires _noSP_ep12_dim900_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 12 --no-mmi-percent 0 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run oIgPm, dir = exp/chain/e2e_tlstm--train-set_chain_dataEx1-shared-tr1sl1
+
+################ 7Pw75 #################
+run-id: 7Pw75
+Tue Oct 17 02:29:40 EDT 2017
+local/chain/run_e2e_lstm.sh --train-set train_nodup_seg_hires --affix _noSP_ep12_dim900_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 12 --no-mmi-percent 0 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run 7Pw75, dir = exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+
+################ DFFFY #################
+run-id: DFFFY
+Tue Oct 17 02:32:38 EDT 2017
+local/chain/run_e2e_lstm.sh --train-set train_nodup_seg_hires --affix _noSP_ep12_dim900_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 12 --no-mmi-percent 0 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 13
+Run DFFFY, dir = exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+Run DFFFY done. Date: Wed Oct 18 15:38:45 EDT 2017. Results:
+%WER 21.0 | 4459 42989 | 81.4 13.3 5.3 2.4 21.0 58.5 | exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_0.0/eval2000_hires.ctm.filt.sys
+%WER 14.8 | 1831 21395 | 87.0 9.5 3.5 1.9 14.8 51.4 | exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_9_0.0/eval2000_hires.ctm.swbd.filt.sys
+%WER 27.0 | 2628 21594 | 76.0 17.1 6.9 3.0 27.0 63.2 | exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_0.0/eval2000_hires.ctm.callhm.filt.sys
+# local/chain/compare_wer_general.sh exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+# System                exp/chain/e2e_tlstm_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+# WER on train_dev(tg)      18.41
+# WER on train_dev(fg)      17.17
+# WER on eval2000(tg)        21.0
+# WER on eval2000(fg)        19.3
+# Final train prob         -0.818
+# Final valid prob         -0.871
+# Final train prob (xent)         0.000
+# Final valid prob (xent)        0.0000
+
+################ JVO0y #################
+run-id: JVO0y
+Wed Oct 18 23:50:36 EDT 2017
+local/chain/run_e2e_lstm_biphone.sh --train-set train_nodup_seg_hires --affix _noSP_ep12_dim900_nommi0_0.2xL2_eqAl0 --equal-align-iters 0 --num-epochs 12 --no-mmi-percent 0 --dim 900 --topo-affix _chain --topo-opts --type chain --tree-affix _sharedT1S1 --l2-regularize 0.00001 --normalize-egs true --cmd queue.pl --config conf/highmem_gpu.conf --minibatch-size 150=100,64/300=50,32/600=25,16/1200=12,8 --stage 12
+Run JVO0y, dir = exp/chain/e2e_tlstm_biphone_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+Run JVO0y done. Date: Fri Oct 20 09:42:32 EDT 2017. Results:
+%WER 18.8 | 4459 42989 | 83.3 11.6 5.1 2.2 18.8 56.5 | exp/chain/e2e_tlstm_biphone_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_11_0.0/eval2000_hires.ctm.filt.sys
+%WER 12.8 | 1831 21395 | 88.6 8.1 3.3 1.4 12.8 48.8 | exp/chain/e2e_tlstm_biphone_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_11_0.0/eval2000_hires.ctm.swbd.filt.sys
+%WER 24.7 | 2628 21594 | 78.3 15.2 6.5 3.0 24.7 61.8 | exp/chain/e2e_tlstm_biphone_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1/decode_a1.0_p10.0_s1.0_eval2000_sw1_tg/score_10_1.0/eval2000_hires.ctm.callhm.filt.sys
+# local/chain/compare_wer_general.sh exp/chain/e2e_tlstm_biphone_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+# System                exp/chain/e2e_tlstm_biphone_noSP_ep12_dim900_nommi0_0.2xL2_eqAl0_chain_sharedT1S1
+# WER on train_dev(tg)      16.55
+# WER on train_dev(fg)      15.44
+# WER on eval2000(tg)        18.8
+# WER on eval2000(fg)        17.2
+# Final train prob         -0.793
+# Final valid prob         -0.841
+# Final train prob (xent)         0.000
+# Final valid prob (xent)        0.0000
