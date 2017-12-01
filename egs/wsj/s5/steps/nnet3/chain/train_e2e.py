@@ -122,6 +122,9 @@ def get_args():
     parser.add_argument("--trainer.n-tie", type=int, dest='n_tie',
                         default=0,
                         help="Number of PDFs to tie")
+    parser.add_argument("--trainer.tie-iter", type=int, dest='tie_iter',
+                        default=75,
+                        help="Iter at which we tie")
     parser.add_argument("--trainer.tie-info", type=str, dest='tie_info',
                         default="",
                         help="Tying info like number of phone sets, etc.")
@@ -487,12 +490,12 @@ def train(args, run_opts):
                               disable_mmi, not disable_viterbi, equal_align))
 
             chain_only1job_opts = ''
-            if args.n_tie != 0 and iter == 75:
+            if args.n_tie != 0 and iter == args.tie_iter:
                 chain_only1job_opts += (" --write-pdf-map-filename={}/"
                                         "pdf-map.txt --percent-pdfs-to-tie={} "
                                         "{}".format(
                                             args.dir, args.n_tie, args.tie_info))
-            if args.n_tie != 0 and iter > 75:
+            if args.n_tie != 0 and iter > args.tie_iter:
                 chain_opts += " --pdf-map-filename={}/pdf-map.txt".format(
                     args.dir)
 
@@ -536,13 +539,13 @@ def train(args, run_opts):
                 chain_train_opts=chain_opts,
                 chain_train_only1job_opts=chain_only1job_opts)
 
-            if args.n_tie != 0 and iter == 75:
+            if args.n_tie != 0 and iter == args.tie_iter:
                 # pdf-map.txt is written. Read the new number of
                 # pdfs from it and update the network.
                 logger.info("Reducing the number of nnet outputs...")
                 common_lib.execute_command(
                     "steps/nnet3/chain/e2e_tie_nnet.sh --iter {it} {d}".format(
-                        it=75+1, d=args.dir))
+                        it=args.tie_iter+1, d=args.dir))
 
 
 

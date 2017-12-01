@@ -21,7 +21,7 @@ final_layer_normalize_target=0.5
 num_jobs_initial=2
 num_jobs_final=12
 minibatch_size=150=128,64/300=100,64,32/600=50,32,16/1200=16,8
-remove_egs=false
+remove_egs=true
 common_egs_dir=
 no_mmi_percent=20
 l2_regularize=0.00005
@@ -59,6 +59,7 @@ dbl_chk=true
 prefinal_dim=$dim
 frame_subsampling_factor=3
 normalize_egs=false
+use_final_stddev=false
 
 proportional_shrink=0.0
 chunk_left_context=0
@@ -143,6 +144,10 @@ if [ $stage -le 12 ]; then
   fi
   num_targets=$(tree-info $treedir/tree |grep num-pdfs|awk '{print $2}')
   #learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
+  final_stddev=0
+  if $use_final_stddev; then
+    final_stddev=$(echo "print(1.0/$dim)" | python)
+  fi
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
@@ -158,7 +163,7 @@ if [ $stage -le 12 ]; then
   $nnet_block name=tdnn6 input=Append(-$lc2,0,$rc2) dim=$dim max-change=$hid_max_change self-repair-scale=$self_repair $common
 
   $nnet_block name=prefinal-chain input=tdnn6 dim=$prefinal_dim target-rms=$final_layer_normalize_target self-repair-scale=$self_repair $common
-  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common
+  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common  param-stddev=$final_stddev
 
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
@@ -202,7 +207,7 @@ if [ $stage -le 13 ]; then
     --trainer.max-param-change $max_param_change \
     --cleanup.remove-egs $remove_egs \
     --cleanup.preserve-model-interval 10 \
-    --cleanup false \
+    --cleanup true \
     --feat-dir data/${train_set} \
     --tree-dir $treedir \
     --dir $dir  || exit 1;

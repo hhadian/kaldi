@@ -169,7 +169,7 @@ EOF
     $nnet_block name=tdnn7 input=Append(-3,0,3) dim=$dim max-change=$hid_max_change self-repair-scale=$self_repair $common
 
     $nnet_block name=prefinal-chain input=tdnn7 dim=$dim target-rms=$final_layer_normalize_target self-repair-scale=$self_repair $common
-    output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common
+    output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common param-stddev=$final_stddev
 EOF
   fi
 

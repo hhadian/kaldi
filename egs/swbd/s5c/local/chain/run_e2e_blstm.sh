@@ -116,7 +116,7 @@ if [ $stage -le 12 ]; then
   num_targets=$(tree-info $treedir/tree |grep num-pdfs|awk '{print $2}')
 
   # recurrent-projection-dim=$proj_dim non-recurrent-projection-dim=$nonproj_dim
-  lstm_opts="decay-time=20"
+  lstm_opts="decay-time=20 lstm-nonlinearity-options=\" max-change=0.75 self-repair-scale=$self_repair_scale\""
   dnn_opts=
   if $disable_ng; then
     lstm_opts="$lstm_opts affine-comp=AffineComponent"
@@ -131,7 +131,7 @@ if [ $stage -le 12 ]; then
   cat <<EOF > $dir/configs/network.xconfig
   input dim=40 name=input
 
-  relu-layer name=tdnn1 input=Append($first_layer_splice) dim=$tdnn_dim
+  relu-batchnorm-layer name=tdnn1 input=Append($first_layer_splice) dim=$tdnn_dim self-repair-scale=$self_repair_scale $dnn_opts
 
   # check steps/libs/nnet3/xconfig/lstm.py for the other options and defaults
   fast-lstm-layer name=blstm1-forward input=tdnn1 cell-dim=$lstm_dim delay=-3 $lstm_opts
