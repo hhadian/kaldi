@@ -21,23 +21,23 @@ nj=20
 if [ -f path.sh ]; then . ./path.sh; fi
 . parse_options.sh || exit 1;
 
-#download dir
-add_val_data_train=false
+# download dir
 download_dir=data/download
-lines=$download_dir/lines
-xml=$download_dir/xml
-ascii=$download_dir/ascii
-bcorpus=$download_dir/browncorpus
-lobcorpus=$download_dir/lobcorpus
-data_split_info=$download_dir/largeWriterIndependentTextLineRecognitionTask
+lines=data/local/lines
+xml=data/local/xml
+ascii=data/local/ascii
+bcorpus=data/local/browncorpus
+lobcorpus=data/local/lobcorpus
+data_split_info=data/local/largeWriterIndependentTextLineRecognitionTask
 lines_url=http://www.fki.inf.unibe.ch/DBs/iamDB/data/lines/lines.tgz
 xml_url=http://www.fki.inf.unibe.ch/DBs/iamDB/data/xml/xml.tgz
 data_split_info_url=http://www.fki.inf.unibe.ch/DBs/iamDB/tasks/largeWriterIndependentTextLineRecognitionTask.zip
 ascii_url=http://www.fki.inf.unibe.ch/DBs/iamDB/data/ascii/ascii.tgz
 brown_corpus_url=http://www.sls.hawaii.edu/bley-vroman/brown.txt
 lob_corpus_url=http://ota.ox.ac.uk/text/0167.zip
-mkdir -p $download_dir
-#download and extact images and transcription
+mkdir -p $download_dir data/local
+
+# download and extact images and transcription
 if [ -d $lines ]; then
   echo Not downloading lines images as it is already there.
 else
@@ -115,8 +115,9 @@ testset=testset.txt
 trainset=trainset.txt
 val1=validationset1.txt
 val2=validationset2.txt
-test_path="$download_dir/$file_name/$testset"
+
 train_path="$download_dir/$file_name/$trainset"
+test_path="$download_dir/$file_name/$testset"
 val1_path="$download_dir/$file_name/$val1"
 val2_path="$download_dir/$file_name/$val2"
 
@@ -127,20 +128,14 @@ new_train_path="data/$new_train_set"
 new_test_path="data/$new_test_set"
 new_val_path="data/$new_val_set"
 
-if $add_val_data_train; then
- cat $train_path $val1_path $val2_path > $new_train_path
- cat $test_path > $new_test_path
- cat $val1_path $val2_path > $new_val_path
-else
- cat $train_path > $new_train_path
- cat $test_path > $new_test_path
- cat $val1_path $val2_path > $new_val_path
-fi
+cat $train_path > $new_train_path
+cat $test_path > $new_test_path
+cat $val1_path $val2_path > $new_val_path
 
 if [ $stage -le 0 ]; then
-  local/process_data.py $download_dir data/train data --dataset new_trainset --model_type word || exit 1
-  local/process_data.py $download_dir data/test data --dataset new_testset --model_type word || exit 1
-  local/process_data.py $download_dir data/val data --dataset new_valset --model_type word || exit 1
+  local/process_data.py data/local data/train data --dataset new_trainset || exit 1
+  local/process_data.py data/local data/test data --dataset new_testset || exit 1
+  local/process_data.py data/local data/val data --dataset new_valset || exit 1
 
   utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   utils/utt2spk_to_spk2utt.pl data/test/utt2spk > data/test/spk2utt

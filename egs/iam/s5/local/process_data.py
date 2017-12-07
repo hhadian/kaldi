@@ -27,13 +27,10 @@ parser.add_argument('database_path', type=str,
 parser.add_argument('out_dir', type=str,
                     help='where to write output files')
 parser.add_argument('dataset_dir', type=str,
-                    help='directory containing dataset')
+                    help='directory containing dataset splits')
 parser.add_argument('--dataset', type=str, default='new_trainset',
                     choices=['new_trainset', 'new_testset','new_valset'],
                     help='choose new_trainset, testset')
-parser.add_argument('--model_type', type=str,default='word',
-                    choices=['word', 'character'],
-                    help='word model or character model')
 args = parser.parse_args()
 
 ### main ###
@@ -64,29 +61,8 @@ def process_text_file_for_word_model():
       text = text.replace("|", " ")
       text_dict[line_vect[0]] = text
 
-def process_text_file_for_char_model():
-  with open (text_file_path, 'rt') as in_file:
-    for line in in_file:
-      if line[0]=='#':
-        continue
-      line = line.strip()
-      line_vect = line.split(' ')
-      text_vect = line.split(' ')[8:]
-      text = "".join(text_vect)
-      characters = list(text)
-      spaced_characters = " ".join(characters)
-      spaced_characters = spaced_characters.replace("|", "SIL")
-      spaced_characters = "SIL " + spaced_characters
-      spaced_characters = spaced_characters + " SIL"
-      text_dict[line_vect[0]] = spaced_characters
-
-
-if args.model_type=='word':
-  print('processing word model')
-  process_text_file_for_word_model()
-else:
-  print('processing char model')
-  process_text_file_for_char_model()
+print('processing word model')
+process_text_file_for_word_model()
 
 with open(dataset_path) as f:
   for line in f:
