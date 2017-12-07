@@ -14,7 +14,7 @@ augment=false
                             # if supplied.
 
 if [ $stage -le 0 ]; then
-  local/prepare_data.sh --nj $nj --dir data
+  local/prepare_data.sh --nj $nj
 fi
 mkdir -p data/{train,test}/data
 

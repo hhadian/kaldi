@@ -6,9 +6,9 @@
 # This script downloads the IAM handwriting database and prepares the training
 # and test data (i.e text, images.scp, utt2spk and spk2utt) by calling process_data.py.
 # It also downloads the LOB and Brown text corpora.It downloads the database files 
-# only if they do not already exist in $dl_dir.
+# only if they do not already exist in download directory.
 
-#  Eg. local/prepare_data.sh --nj 20 --dir data
+#  Eg. local/prepare_data.sh --nj 20
 #  Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
 #      utt2spk file: 000_a01-000u-00 000
 #      images.scp file: 000_a01-000u-00 data/download/lines/a01/a01-000u/a01-000u-00.png
@@ -110,7 +110,7 @@ else
   echo Done downloading brown corpus
 fi
 
-mkdir -p $dir/{train,test,val}
+mkdir -p data/{train,test,val}
 file_name=largeWriterIndependentTextLineRecognitionTask
 testset=testset.txt
 trainset=trainset.txt
@@ -124,9 +124,9 @@ val2_path="$dl_dir/$file_name/$val2"
 new_train_set=new_trainset.txt
 new_test_set=new_testset.txt
 new_val_set=new_valset.txt
-new_train_path="$dir/$new_train_set"
-new_test_path="$dir/$new_test_set"
-new_val_path="$dir/$new_val_set"
+new_train_path="data/$new_train_set"
+new_test_path="data/$new_test_set"
+new_val_path="data/$new_val_set"
 
 if $add_val_data_train; then
  cat $train_path $val1_path $val2_path > $new_train_path
@@ -139,10 +139,10 @@ else
 fi
 
 if [ $stage -le 0 ]; then
-  local/process_data.py $dl_dir $dir/train $dir --dataset new_trainset --model_type word || exit 1
-  local/process_data.py $dl_dir $dir/test $dir --dataset new_testset --model_type word || exit 1
-  local/process_data.py $dl_dir $dir/val $dir --dataset new_valset --model_type word || exit 1
+  local/process_data.py $dl_dir data/train data --dataset new_trainset --model_type word || exit 1
+  local/process_data.py $dl_dir data/test data --dataset new_testset --model_type word || exit 1
+  local/process_data.py $dl_dir data/val data --dataset new_valset --model_type word || exit 1
 
-  utils/utt2spk_to_spk2utt.pl $dir/train/utt2spk > $dir/train/spk2utt
-  utils/utt2spk_to_spk2utt.pl $dir/test/utt2spk > $dir/test/spk2utt
+  utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
+  utils/utt2spk_to_spk2utt.pl data/test/utt2spk > data/test/spk2utt
 fi
