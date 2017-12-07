@@ -16,7 +16,6 @@
 
 stage=0
 nj=20
-dir=data
 
 . ./cmd.sh
 if [ -f path.sh ]; then . ./path.sh; fi
