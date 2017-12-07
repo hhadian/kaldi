@@ -22,7 +22,7 @@ if [ -f path.sh ]; then . ./path.sh; fi
 . parse_options.sh || exit 1;
 
 # download dir
-download_dir=data/download
+download_dir=/export/corpora5/handwriting_ocr/IAM
 lines=data/local/lines
 xml=data/local/xml
 ascii=data/local/ascii
