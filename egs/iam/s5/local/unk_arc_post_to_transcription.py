@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+
 """ This module will be used by scripts for open vocabulary setup.
  If the hypothesis transcription contains <unk>, then it will replace the 
  <unk> with the word predicted by <unk> model by concatenating phones decoded 

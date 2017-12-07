@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
-""" This script reads the data from download directory and creates particular files
- like text, utt2spk, images.scp. It can create the text file for both word language
+""" This script reads the data from download directory and creates following files:
+ text, utt2spk, images.scp. It can create the text file for both word language
  model and character language model. This scripts is written according to iam data
  format.
  Args:
   database_path: input data path. path to downloaded data(utterance ID and transcription)
-  dataset: It tells which split to read (train, test or valid). 
+  dataset: It tells which split to read (train, test or valid).
   input-ark: file containing hypothesis transcription with <unk>
   out_dir: where to write output files
-  
+
   Eg. local/process_data.py data/download data/train data --dataset new_trainset --model_type word
   Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
       utt2spk file: 000_a01-000u-00 000

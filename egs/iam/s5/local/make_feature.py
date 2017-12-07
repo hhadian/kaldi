@@ -1,8 +1,18 @@
 #!/usr/bin/env python
 
+# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+
 """ This module will be used for line image preprocessing. It
-    performs scaling. It will then write the raw pixel features in kaldi format.
- 
+    performs image resizing while maintaining the aspect ratio,
+    image padding on left and right side of the image and scales
+    image pixel values between 0 and 1. It will then write the
+    raw pixel features in kaldi format.
+  Args:
+   dir: utterance id and image path directory
+   --out-ark: location of output features.
+   --scale-size: size to scale the height of all images.
+   --padding: width of white pixels on lift and right side of image
+
   Eg. local/make_feature.py data/train --scale-size 40
 """
 
@@ -17,10 +27,10 @@ from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL)
 
 parser = argparse.ArgumentParser(description="""Generates and saves the feature vectors""")
-parser.add_argument('dir', type=str, help='directory of images.scp and is also output directory')
+parser.add_argument('dir', type=str, help='directory of images.scp')
 parser.add_argument('--out-ark', type=str, default='-', help='where to write the output feature file')
 parser.add_argument('--scale-size', type=int, default=40, help='size to scale the height of all images')
-parser.add_argument('--padding', type=int, default=5, help='size to scale the height of all images')
+parser.add_argument('--padding', type=int, default=5, help='width of white pixels')
 args = parser.parse_args()
 
 

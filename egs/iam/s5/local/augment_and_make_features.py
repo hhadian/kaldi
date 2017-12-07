@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora, Yiwen Shao)
+
 """ This module will be used for line image preprocessing and augmentation. It
     performs scaling, image deslanting, contrast normalization and augmentation.
     It will then write the raw pixel features in kaldi format.
