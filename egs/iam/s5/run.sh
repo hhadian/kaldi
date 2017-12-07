@@ -20,7 +20,7 @@ mkdir -p data/{train,test}/data
 
 if [ $stage -le 1 ]; then
   # process image extract raw pixel features
-  local/make_features.py data/test --scale-size 40 | \
+  local/make_features.py data/test --feat-dim 40 | \
     copy-feats --compress=true --compression-method=7 \
     ark:- ark,scp:data/test/data/images.ark,data/test/feats.scp || exit 1
   steps/compute_cmvn_stats.sh data/test || exit 1;
@@ -29,12 +29,12 @@ if [ $stage -le 1 ]; then
     # create a backup directory to store text, utt2spk and image.scp file
     mkdir -p data/train/backup
     mv data/train/text data/train/utt2spk data/train/images.scp data/train/backup/
-    local/augment_and_make_features.py data/train --scale-size 40 --vertical-shift 10 | \
+    local/augment_and_make_features.py data/train --feat-dim 40 --vertical-shift 10 | \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:data/train/data/images.ark,data/train/feats.scp || exit 1
     utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   else
-    local/make_features.py data/train --scale-size 40 | \
+    local/make_features.py data/train --feat-dim 40 | \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:data/train/data/images.ark,data/train/feats.scp || exit 1
   fi

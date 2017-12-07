@@ -32,7 +32,7 @@ parser.add_argument('--seg', type=str, default='1',
                     help='JOB number of images.JOB.scp if run in parallel mode')
 parser.add_argument('--out-ark', type=str, default='-',
                     help='where to write the output feature file')
-parser.add_argument('--scale-size', type=int, default=40,
+parser.add_argument('--feat-dim', type=int, default=40,
                     help='size to scale the height of all images')
 parser.add_argument('--padding', type=int, default=5,
                     help='size to scale the height of all images')
@@ -59,7 +59,7 @@ def write_kaldi_matrix(file_handle, matrix, key):
 
 
 def get_scaled_image(im):
-    scale_size = args.scale_size
+    scale_size = args.feat_dim
     sx = im.shape[1]  # width
     sy = im.shape[0]  # height
     scale = (1.0 * scale_size) / sy
