@@ -14,7 +14,7 @@ augment=false
                             # if supplied.
 
 if [ $stage -le 0 ]; then
-  local/prepare_data.sh --nj $nj
+  local/prepare_data.sh --nj $nj --download_dir /export/corpora5/handwriting_ocr/IAM
 fi
 mkdir -p data/{train,test}/data
 

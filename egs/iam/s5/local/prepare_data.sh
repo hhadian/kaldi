@@ -16,13 +16,12 @@
 
 stage=0
 nj=20
+download_dir=data/download
 
 . ./cmd.sh
 if [ -f path.sh ]; then . ./path.sh; fi
 . parse_options.sh || exit 1;
 
-# download dir
-download_dir=data/download
 lines=data/local/lines
 xml=data/local/xml
 ascii=data/local/ascii
@@ -116,10 +115,10 @@ trainset=trainset.txt
 val1=validationset1.txt
 val2=validationset2.txt
 
-train_path="$download_dir/$file_name/$trainset"
-test_path="$download_dir/$file_name/$testset"
-val1_path="$download_dir/$file_name/$val1"
-val2_path="$download_dir/$file_name/$val2"
+train_path="data/local/$file_name/$trainset"
+test_path="data/local/$file_name/$testset"
+val1_path="data/local/$file_name/$val1"
+val2_path="data/local/$file_name/$val2"
 
 new_train_set=new_trainset.txt
 new_test_set=new_testset.txt
