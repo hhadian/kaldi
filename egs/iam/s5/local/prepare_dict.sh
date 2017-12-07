@@ -6,10 +6,6 @@
 # This module prepares dictionary directory. It creates lexicon.txt,
 #    silence_phones.txt, optional_silence.txt and extra_questions.txt.
 #
-#    Args:
-#     $1: location of train tet file.
-#     $2: location of dict directory.
-#
 #    Eg. local/prepare_dict.sh data/train/ data/train/dict
 
 

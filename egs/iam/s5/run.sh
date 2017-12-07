@@ -20,7 +20,7 @@ mkdir -p data/{train,test}/data
 
 if [ $stage -le 1 ]; then
   # process image extract raw pixel features
-  local/make_feature.py data/test --scale-size 40 | \
+  local/make_features.py data/test --scale-size 40 | \
     copy-feats --compress=true --compression-method=7 \
     ark:- ark,scp:data/test/data/images.ark,data/test/feats.scp || exit 1
   steps/compute_cmvn_stats.sh data/test || exit 1;
@@ -34,7 +34,7 @@ if [ $stage -le 1 ]; then
       ark:- ark,scp:data/train/data/images.ark,data/train/feats.scp || exit 1
     utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   else
-    local/make_feature.py data/train --scale-size 40 | \
+    local/make_features.py data/train --scale-size 40 | \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:data/train/data/images.ark,data/train/feats.scp || exit 1
   fi
