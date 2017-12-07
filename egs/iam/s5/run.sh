@@ -56,7 +56,6 @@ if [ $stage -le 3 ]; then
   utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
                         --unk-fst exp/unk_lang_model/unk_fst.txt data/train/dict "<unk>" data/lang/temp data/lang_unk
   cp data/lang_test/G.fst data/lang_unk/G.fst
-  exit 1;
 fi
 
 if [ $stage -le 4 ]; then
