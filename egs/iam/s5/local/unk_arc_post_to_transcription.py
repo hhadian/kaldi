@@ -6,7 +6,6 @@
  If the hypothesis transcription contains <unk>, then it will replace the 
  <unk> with the word predicted by <unk> model by concatenating phones decoded 
  from the unk-model. It is currently supported only for triphone setup.
-
  Args:
   phones: File name of a file that contains the phones.txt, (symbol-table for phones).
           phone and phoneID, Eg. a 217, phoneID of 'a' is 217. 
@@ -24,7 +23,6 @@
   
   Eg. local/unk_arc_post_to_transcription.py lang/phones.txt lang/words.txt 
       data/lang/oov.int
-
 """
 import argparse
 import os
@@ -75,13 +73,13 @@ utt_word_dict = dict() # Dict of list, stores mapping from utteranceID(int) to w
 for line in arc_post_handle:
   line_vect = line.strip().split("\t")
   if len(line_vect) < 6: # Check for 1best-arc-post output
-    print "Error: Invalid line in the 1best-arc-post file"
-    print line_vect
+    print("Error: Invalid line in the 1best-arc-post file")
+    print(line_vect)
     continue
   utt_id = line_vect[0]
   word = line_vect[4]
   phones = line_vect[5]
-  if utt_id not in utt_word_dict.keys():
+  if utt_id not in list(utt_word_dict.keys()):
     utt_word_dict[utt_id] = list()
 
   if word == unk_val: # Get the 1best phone sequence given by the unk-model
@@ -102,7 +100,7 @@ for line in arc_post_handle:
     utt_word_dict[utt_id].append(word_val) # Store word from 1best-arc-post
 
 transcription = "" # Output transcription
-for utt_key in sorted(utt_word_dict.iterkeys()):
+for utt_key in sorted(utt_word_dict.keys()):
   transcription = utt_key
   for word in utt_word_dict[utt_key]:
     transcription = transcription + " " + word

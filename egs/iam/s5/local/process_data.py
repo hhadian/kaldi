@@ -9,7 +9,6 @@
   dataset: It tells which split to read (train, test or valid).
   input-ark: file containing hypothesis transcription with <unk>
   out_dir: where to write output files
-
   Eg. local/process_data.py data/download data/train data --dataset new_trainset --model_type word
   Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
       utt2spk file: 000_a01-000u-00 000
@@ -85,10 +84,10 @@ def process_text_file_for_char_model():
 
 
 if args.model_type=='word':
-  print 'processing word model'
+  print('processing word model')
   process_text_file_for_word_model()
 else:
-  print 'processing char model'
+  print('processing char model')
   process_text_file_for_char_model()
 
 with open(dataset_path) as f:

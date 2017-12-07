@@ -12,7 +12,6 @@
    --out-ark: location of output features.
    --scale-size: size to scale the height of all images.
    --padding: width of white pixels on lift and right side of image
-
   Eg. local/make_feature.py data/train --scale-size 40
 """
 
@@ -45,7 +44,7 @@ def write_kaldi_matrix(file_handle, matrix, key):
         if num_cols != len(matrix[row_index]):
             raise Exception("All the rows of a matrix are expected to "
                             "have the same length")
-        file_handle.write(" ".join(map(lambda x: str(x), matrix[row_index])))
+        file_handle.write(" ".join([str(x) for x in matrix[row_index]]))
         if row_index != num_rows - 1:
             file_handle.write("\n")
     file_handle.write(" ]\n")
@@ -84,4 +83,3 @@ with open(data_list_path) as f:
         data = np.transpose(im_scale, (1, 0))
         data = np.divide(data, 255.0)
         write_kaldi_matrix(out_fh, data, image_id)
-
