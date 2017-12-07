@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """ This script reads the data from download directory and creates following files:
  text, utt2spk, images.scp. It can create the text file for both word language

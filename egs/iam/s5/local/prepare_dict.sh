@@ -33,6 +33,7 @@ awk '{
 
 #replace '#' with '<HASH>'
 sed 's/\#/<HASH>/2' lexicon_with_hash > $dir/lexicon.txt
+rm -rf lexicon_with_hash train_words
 
 cut -d' ' -f2- $dir/lexicon.txt | tr ' ' '\n' | sort -u >$dir/nonsilence_phones.txt || exit 1;
 
