@@ -23,13 +23,13 @@ from scipy import misc
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL)
 
-parser = argparse.ArgumentParser(description="""Converts images (in 'dir'/images.scp) to features and 
-                                                writes them to standard output in text format.""")
+parser = argparse.ArgumentParser(description="""Converts images (in 'dir'/images.scp) to features and" 
+                                               " writes them to standard output in text format.""")
 parser.add_argument('dir', type=str, help='directory of images.scp')
 parser.add_argument('--out-ark', type=str, default='-', help='where to write the output feature file')
 parser.add_argument('--feat-dim', type=int, default=40, help='size to scale the height of all images')
-parser.add_argument('--padding', type=int, default=5, help='Number of white pixels to pad on the left 
-                                                            and right side of the image.')
+parser.add_argument('--padding', type=int, default=5, help='Number of white pixels to pad on the left'
+                                                            'and right side of the image.')
 args = parser.parse_args()
 
 
