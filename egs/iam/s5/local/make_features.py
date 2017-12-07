@@ -3,17 +3,14 @@
 #Copyright      2017  Chun Chieh Chang
 #               2017  Ashish Arora
 
-""" This module will be used for line image preprocessing. It
-    performs image resizing while maintaining the aspect ratio,
-    image padding on left and right side of the image and scales
-    image pixel values between 0 and 1. It will then write the
-    raw pixel features in kaldi format.
-  Args:
-   dir: utterance id and image path directory
-   --out-ark: location of output features.
-   --scale-size: size to scale the height of all images.
-   --padding: width of white pixels on lift and right side of image
-  Eg. local/make_feature.py data/train --scale-size 40
+""" This script converts images to Kaldi-format feature matrices.The input to 
+    this script is the path to a data directory, e.g. "data/train". This script 
+    reads the images listed in images.scp and writes them to standard output 
+    (by default) as Kaldi-formatted matrices (in text form). It also scales the 
+    images so they have the same height (via --feat-dim). It can optionally pad 
+    the images (on left/right sides) with white pixels.
+
+    Eg. local/make_feature.py data/train --scale-size 40
 """
 
 import argparse
