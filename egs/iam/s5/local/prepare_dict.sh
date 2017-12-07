@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+#Copyright      2017  Chun Chieh Chang
+#               2017  Ashish Arora
 
 # This module prepares dictionary directory. It creates lexicon.txt,
 #    silence_phones.txt, optional_silence.txt and extra_questions.txt.

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+#Copyright      2017  Chun Chieh Chang
+#               2017  Ashish Arora
 
 """ This module will be used for line image preprocessing. It
     performs image resizing while maintaining the aspect ratio,
@@ -25,11 +26,13 @@ from scipy import misc
 from signal import signal, SIGPIPE, SIG_DFL
 signal(SIGPIPE,SIG_DFL)
 
-parser = argparse.ArgumentParser(description="""Generates and saves the feature vectors""")
+parser = argparse.ArgumentParser(description="""Converts images (in 'dir'/images.scp) to features and 
+                                                writes them to standard output in text format.""")
 parser.add_argument('dir', type=str, help='directory of images.scp')
 parser.add_argument('--out-ark', type=str, default='-', help='where to write the output feature file')
-parser.add_argument('--scale-size', type=int, default=40, help='size to scale the height of all images')
-parser.add_argument('--padding', type=int, default=5, help='width of white pixels')
+parser.add_argument('--feat-dim', type=int, default=40, help='size to scale the height of all images')
+parser.add_argument('--padding', type=int, default=5, help='Number of white pixels to pad on the left 
+                                                            and right side of the image.')
 args = parser.parse_args()
 
 
@@ -50,7 +53,7 @@ def write_kaldi_matrix(file_handle, matrix, key):
     file_handle.write(" ]\n")
 
 def get_scaled_image(im):
-    scale_size = args.scale_size
+    scale_size = args.feat_dim
     sx = im.shape[1]
     sy = im.shape[0]
     scale = (1.0 * scale_size) / sy

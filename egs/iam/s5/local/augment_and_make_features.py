@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
-# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora, Yiwen Shao)
+#Copyright      2017  Chun Chieh Chang
+#               2017  Ashish Arora
+#               2017  Yiwen Shao
 
 """ This module will be used for line image preprocessing and augmentation. It
     performs scaling, image deslanting, contrast normalization and augmentation.

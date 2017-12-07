@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+#Copyright      2017  Chun Chieh Chang
+#               2017  Ashish Arora
+
 """ This script reads the data from download directory and creates following files:
  text, utt2spk, images.scp. It can create the text file for both word language
  model and character language model. This scripts is written according to iam data

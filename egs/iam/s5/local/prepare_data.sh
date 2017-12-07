@@ -1,15 +1,13 @@
 #!/bin/bash
 
-# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+#Copyright      2017  Chun Chieh Chang
+#               2017  Ashish Arora
 
-# This script loads the IAM handwritten dataset, LOB corpora and Brown corpora.
-#    It calls local/process_data.py which  reads the downloaded data and creates following
-#    files: text, utt2spk, images.scp. It also calls utt2spk_to_spk2utt.pl which creates
-#    spk2utt from utt2spk.
-# Args:
-#  --nj: number of jobs.
-#  --dir: download directory.
-#
+# This script downloads the IAM handwriting database and prepares the training and test data 
+# (i.e text, images.scp, utt2spk and spk2utt) by calling process_data.py. It also downloads 
+# the LOB and Brown text corpora.
+# It downloads the database files only if they do not already exist in $dl_dir.
+
 #  Eg. local/prepare_data.sh --nj 20 --dir data
 #  Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
 #      utt2spk file: 000_a01-000u-00 000

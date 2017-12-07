@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+#Copyright      2017  Chun Chieh Chang
+#               2017  Ashish Arora
+
 stage=0
 nj=20
 color=1
@@ -47,7 +49,8 @@ fi
 
 if [ $stage -le 3 ]; then
   local/iam_train_lm.sh
-  cp -R data/lang -T data/lang_test
+  mkdir -p data/lang_test
+  cp -R data/lang/. data/lang_test/
   gunzip -k -f data/local/local_lm/data/arpa/3gram_big.arpa.gz
   local/prepare_lm.sh data/local/local_lm/data/arpa/3gram_big.arpa data/lang_test || exit 1;
 

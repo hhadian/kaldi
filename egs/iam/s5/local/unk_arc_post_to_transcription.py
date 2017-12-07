@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-# Copyright 2017 (Author: Chun Chieh Chang, Ashish Arora)
+#Copyright      2017  Ashish Arora
 
 """ This module will be used by scripts for open vocabulary setup.
  If the hypothesis transcription contains <unk>, then it will replace the 
