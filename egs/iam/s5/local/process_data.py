@@ -55,11 +55,11 @@ def process_text_file_for_word_model():
       if line[0]=='#':
         continue
       line = line.strip()
-      line_vect = line.split(' ')
+      utt_id = line.split(' ')[0]
       text_vect = line.split(' ')[8:]
       text = "".join(text_vect)
       text = text.replace("|", " ")
-      text_dict[line_vect[0]] = text
+      text_dict[utt_id] = text
 
 print('processing word model')
 process_text_file_for_word_model()
