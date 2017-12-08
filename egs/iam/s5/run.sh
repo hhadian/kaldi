@@ -129,6 +129,6 @@ if [ $stage -le 13 ]; then
 fi
 
 if [ $stage -le 14 ]; then
-  local/chain/run_cnn_chainali_1a.sh --chain-model-dir exp/chain/cnn_1a \
+  local/chain/run_cnn_chainali_1b.sh --chain-model-dir exp/chain/cnn_1a \
     --lang-test lang_unk
 fi
