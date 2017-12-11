@@ -7,10 +7,10 @@
  text, utt2spk, images.scp. It can create the text file for both word language
  model and character language model. This scripts is written according to iam data
  format.
-  Eg. local/process_data.py data/download data/train data --dataset new_trainset --model_type word
+  Eg. local/process_data.py data/local data/train data --dataset new_trainset --model_type word
   Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
       utt2spk file: 000_a01-000u-00 000
-      images.scp file: 000_a01-000u-00 data/download/lines/a01/a01-000u/a01-000u-00.png
+      images.scp file: 000_a01-000u-00 data/local/lines/a01/a01-000u/a01-000u-00.png
 """
 
 import argparse

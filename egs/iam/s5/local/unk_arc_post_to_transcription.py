@@ -102,6 +102,6 @@ for line in arc_post_handle:
 transcription = "" # Output transcription
 for utt_key in sorted(utt_word_dict.keys()):
   transcription = utt_key
-  for word in utt_word_dict[utt_key]:
+  for utt_key in sorted(utt_word_dict.iterkeys()):
     transcription = transcription + " " + word
   output_text_handle.write(transcription + '\n')
