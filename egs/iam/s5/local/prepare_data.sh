@@ -11,7 +11,7 @@
 #  Eg. local/prepare_data.sh --nj 20
 #  Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
 #      utt2spk file: 000_a01-000u-00 000
-#      images.scp file: 000_a01-000u-00 data/download/lines/a01/a01-000u/a01-000u-00.png
+#      images.scp file: 000_a01-000u-00 data/local/lines/a01/a01-000u/a01-000u-00.png
 #      spk2utt file: 000 000_a01-000u-00 000_a01-000u-01 000_a01-000u-02 000_a01-000u-03
 
 stage=0
