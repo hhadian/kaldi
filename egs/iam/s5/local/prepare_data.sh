@@ -110,26 +110,19 @@ fi
 
 mkdir -p data/{train,test,val}
 file_name=largeWriterIndependentTextLineRecognitionTask
-testset=testset.txt
-trainset=trainset.txt
-val1=validationset1.txt
-val2=validationset2.txt
 
-train_path="data/local/$file_name/$trainset"
-test_path="data/local/$file_name/$testset"
-val1_path="data/local/$file_name/$val1"
-val2_path="data/local/$file_name/$val2"
+train_old="data/local/$file_name/trainset.txt"
+test_old="data/local/$file_name/testset.txt"
+val1_old="data/local/$file_name/validationset1.txt"
+val2_old="data/local/$file_name/validationset2.txt"
 
-new_train_set=new_trainset.txt
-new_test_set=new_testset.txt
-new_val_set=new_valset.txt
-new_train_path="data/$new_train_set"
-new_test_path="data/$new_test_set"
-new_val_path="data/$new_val_set"
+train_new="data/new_trainset.txt"
+test_new="data/new_testset.txt"
+val_new="data/new_valset.txt"
 
-cat $train_path > $new_train_path
-cat $test_path > $new_test_path
-cat $val1_path $val2_path > $new_val_path
+cat $train_old > $train_new
+cat $test_old > $test_new
+cat $val1_old $val2_old > $val_new
 
 if [ $stage -le 0 ]; then
   local/process_data.py data/local data/train data --dataset new_trainset || exit 1
