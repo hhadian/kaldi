@@ -116,18 +116,18 @@ test_old="data/local/$file_name/testset.txt"
 val1_old="data/local/$file_name/validationset1.txt"
 val2_old="data/local/$file_name/validationset2.txt"
 
-train_new="data/new_trainset.txt"
-test_new="data/new_testset.txt"
-val_new="data/new_valset.txt"
+train_new="data/local/new_trainset.txt"
+test_new="data/local/new_testset.txt"
+val_new="data/local/new_valset.txt"
 
 cat $train_old > $train_new
 cat $test_old > $test_new
 cat $val1_old $val2_old > $val_new
 
 if [ $stage -le 0 ]; then
-  local/process_data.py data/local data/train data --dataset new_trainset || exit 1
-  local/process_data.py data/local data/test data --dataset new_testset || exit 1
-  local/process_data.py data/local data/val data --dataset new_valset || exit 1
+  local/process_data.py data/local data/train --dataset new_trainset || exit 1
+  local/process_data.py data/local data/test --dataset new_testset || exit 1
+  local/process_data.py data/local data/val --dataset new_valset || exit 1
 
   utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   utils/utt2spk_to_spk2utt.pl data/test/utt2spk > data/test/spk2utt

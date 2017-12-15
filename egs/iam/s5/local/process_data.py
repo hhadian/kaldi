@@ -26,8 +26,6 @@ parser.add_argument('database_path', type=str,
                     help='path to downloaded iam data')
 parser.add_argument('out_dir', type=str,
                     help='where to write output files')
-parser.add_argument('dataset_dir', type=str,
-                    help='directory containing dataset splits')
 parser.add_argument('--dataset', type=str, default='new_trainset',
                     choices=['new_trainset', 'new_testset','new_valset'],
                     help='choose new_trainset, testset')
@@ -43,7 +41,7 @@ utt2spk_fh = open(utt2spk_file, 'w')
 image_file = os.path.join(args.out_dir + '/', 'images.scp')
 image_fh = open(image_file, 'w')
 
-dataset_path = os.path.join(args.dataset_dir,
+dataset_path = os.path.join(args.database_path,
                             args.dataset + '.txt')
 
 text_file_path = os.path.join(args.database_path,
