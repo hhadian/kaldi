@@ -28,22 +28,22 @@ beam=50
 
 if [ $stage -le 2 ]; then
   local/prepare_dict.sh data/train/ data/test/ data/train/dict
-  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --position-dependent-phones false \
-    data/train/dict "<sil>" data/lang/temp data/lang
+  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
+    data/train/dict "<unk>" data/lang/temp data/lang
 fi
 
 if [ $stage -le 3 ]; then
+  local/uw3_train_lm.sh
   mkdir -p data/lang_test
   cp -R data/lang/. data/lang_test/
+  gunzip -k -f data/local/local_lm/data/arpa/3gram_big.arpa.gz
+  local/prepare_lm.sh data/local/local_lm/data/arpa/3gram_big.arpa data/lang_test || exit 1;
 
-  cp data/train/text data/train/text_copy
-  cat data/test/text | awk '{ for(i=2;i<=NF;i++) print $i;}' | sort -u >test_words.txt
-  cat data/train/text | awk '{ for(i=2;i<=NF;i++) print $i;}' | sort -u >train_words.txt
-  filter_scp.pl --exclude train_words.txt test_words.txt >diff.txt
-  cat diff.txt | awk '{ print "id " $1 }' >> data/train/text_copy
-
-  local/prepare_lm.sh data/train/text_copy data/lang_test || exit 1;
-  rm test_words.txt train_words.txt diff.txt
+  # prepare the unk model for open-vocab decoding
+  utils/lang/make_unk_lm.sh --ngram-order 4 --num-extra-ngrams 7500 data/train/dict exp/unk_lang_model
+  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
+    --unk-fst exp/unk_lang_model/unk_fst.txt data/train/dict "<unk>" data/$lang_dir/temp data/lang_unk
+  cp data/lang_test/G.fst data/lang_unk/G.fst
 fi
 
 if [ $stage -le 4 ]; then
