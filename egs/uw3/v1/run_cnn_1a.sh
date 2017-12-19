@@ -1,5 +1,8 @@
 #!/bin/bash
 
+#head ./exp/chain/cnn1a/decode_test/scoring_kaldi/best_wer
+#%WER 1.63 [ 581 / 35571, 142 ins, 36 del, 403 sub ] exp/chain/cnn1a/decode_test/wer_7_1.0
+
 set -e -o pipefail
 
 stage=0
