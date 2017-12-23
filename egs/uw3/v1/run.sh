@@ -27,7 +27,7 @@ fi
 beam=50
 
 if [ $stage -le 2 ]; then
-  local/prepare_dict.sh data/train/ data/test/ data/train/dict
+  local/prepare_dict.sh data/train/ data/train/dict
   utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
     data/train/dict "<unk>" data/lang/temp data/lang
 fi
