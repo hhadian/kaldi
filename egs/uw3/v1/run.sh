@@ -36,8 +36,8 @@ if [ $stage -le 3 ]; then
   local/uw3_train_lm.sh
   mkdir -p data/lang_test
   cp -R data/lang/. data/lang_test/
-  gunzip -k -f data/local/local_lm/data/arpa/3gram_big.arpa.gz
-  local/prepare_lm.sh data/local/local_lm/data/arpa/3gram_big.arpa data/lang_test || exit 1;
+  gunzip -k -f data/local/local_lm/data/arpa/3gram_unpruned.arpa.gz
+  local/prepare_lm.sh data/local/local_lm/data/arpa/3gram_unpruned.arpa data/lang_test || exit 1;
 
   # prepare the unk model for open-vocab decoding
   utils/lang/make_unk_lm.sh --ngram-order 4 --num-extra-ngrams 7500 data/train/dict exp/unk_lang_model
