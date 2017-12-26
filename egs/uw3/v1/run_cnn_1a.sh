@@ -1,9 +1,9 @@
 #!/bin/bash
 
 #head ./exp/chain/cnn1a/decode_test/scoring_kaldi/best_wer
-#%WER 1.80 [ 642 / 35571, 157 ins, 53 del, 432 sub ] exp/chain/cnn1a/decode_test/wer_7_1.0
+#%WER 1.09 [ 389 / 35571, 104 ins, 39 del, 246 sub ] exp/chain/cnn1a/decode_test/wer_7_1.0
 #head ./exp/chain/cnn1a/decode_test/scoring_kaldi/best_cer
-#%WER 0.31 [ 591 / 188135, 141 ins, 244 del, 206 sub ] exp/chain/cnn1a/decode_test/cer_7_0.0
+#%WER 0.22 [ 423 / 188135, 112 ins, 152 del, 159 sub ] exp/chain/cnn1a/decode_test/cer_7_0.0
 
 set -e -o pipefail
 
