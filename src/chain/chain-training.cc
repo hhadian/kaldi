@@ -98,6 +98,15 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
       xent_output_deriv->SetZero();
       numerator.Backward(xent_output_deriv);
     }
+  } else if (supervision.ali.NumRows() != 0) {
+    num_logprob_weighted = -8 * *weight; //some fixed value-- not important
+    num_ok = true;
+    KALDI_LOG << "Pre-computed soft alignments available. Using them...";
+    if (nnet_output_deriv) {
+      Matrix<BaseFloat> derivs(supervision.ali.NumRows(), supervision.ali.NumCols(), kUndefined);
+      supervision.ali.CopyToMat(&derivs);
+      nnet_output_deriv->CopyFromMat(derivs);
+    }
   } else {
     NumeratorGraph ng(supervision, opts.offset_first_transitions);
     if (!opts.pdf_map_filename.empty())

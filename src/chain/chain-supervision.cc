@@ -592,6 +592,10 @@ void Supervision::Write(std::ostream &os, bool binary) const {
       }
     }
     WriteToken(os, binary, "</FSTs>");
+    if (ali.NumRows() != 0) {
+      WriteToken(os, binary, "<SoftAli>");
+      ali.Write(os, binary);
+    }
   }
   WriteToken(os, binary, "</Supervision>");
 }
@@ -604,6 +608,7 @@ void Supervision::Swap(Supervision *other) {
   std::swap(fst, other->fst);
   std::swap(e2e, other->e2e);
   std::swap(e2e_fsts, other->e2e_fsts);
+  std::swap(ali, other->ali);
 }
 
 void Supervision::Read(std::istream &is, bool binary) {
@@ -648,6 +653,12 @@ void Supervision::Read(std::istream &is, bool binary) {
       }
     }
     ExpectToken(is, binary, "</FSTs>");
+    std::string tok;
+    ReadToken(is, binary, &tok);
+    if (tok == "<SoftAli>")
+      ali.Read(is, binary);
+    else
+      return;
   }
   ExpectToken(is, binary, "</Supervision>");
 }
@@ -691,7 +702,7 @@ Supervision::Supervision(const Supervision &other):
     weight(other.weight), num_sequences(other.num_sequences),
     frames_per_sequence(other.frames_per_sequence),
     label_dim(other.label_dim), e2e(other.e2e), fst(other.fst),
-    e2e_fsts(other.e2e_fsts) { }
+    e2e_fsts(other.e2e_fsts), ali(other.ali) { }
 
 void AppendSupervision(const std::vector<const Supervision*> &input,
                        bool compactify,
@@ -748,6 +759,16 @@ void AppendSupervision(const std::vector<const Supervision*> &input,
       KALDI_ASSERT(input[i]->frames_per_sequence ==
                    (*output_supervision)[0].frames_per_sequence);
       (*output_supervision)[0].e2e_fsts.push_back(input[i]->e2e_fsts[0]);
+    }
+    int32 T = (*output_supervision)[0].frames_per_sequence,
+        B = input.size(),
+        N = (*output_supervision)[0].ali.NumCols();
+    // put all soft alignments into one
+    if ((*output_supervision)[0].ali.NumRows() != 0) {
+      (*output_supervision)[0].ali = SparseMatrix<BaseFloat>(B * T, N);
+      for (int32 t = 0; t < T; t++)
+        for (int32 seq = 0; seq < B; seq++)
+          (*output_supervision)[0].ali.SetRow(t * B + seq, input[seq]->ali.Row(t));
     }
   }
 }

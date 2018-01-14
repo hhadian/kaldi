@@ -21,7 +21,7 @@ max_param_change=2.0
 final_layer_normalize_target=0.5
 num_jobs_initial=3
 num_jobs_final=16
-minibatch_size=150=128,64/300=100,64,32/600=50,32,16/1200=16,8
+minibatch_size=150=128,64/300=64,32/600=32,16/1200=16,8
 remove_egs=true
 common_egs_dir=
 no_mmi_percent=20
@@ -210,26 +210,30 @@ if [ $stage -le 13 ]; then
     --trainer.optimization.final-effective-lrate $final_effective_lrate \
     --trainer.max-param-change $max_param_change \
     --cleanup.remove-egs $remove_egs \
-    --cleanup.preserve-model-interval 10 \
+    --cleanup.preserve-model-interval 50 \
     --feat-dir data/${train_set} \
     --tree-dir $treedir \
     --dir $dir  || exit 1;
 fi
 
+if [ $slc != 1.0 ]; then
+  slc_affix=_slc$slc
+fi
 
+
+graph_dir=$dir/graph_sw1_tg$slc_affix
 if [ $stage -le 14 ]; then
-  rm -rf $dir/graph_sw1_tg
+  rm -rf $graph_dir
   # Note: it might appear that this $lang directory is mismatched, and it is as
   # far as the 'topo' is concerned, but this script doesn't read the 'topo' from
   # the lang directory.
-  utils/mkgraph.sh --self-loop-scale $slc data/lang${base_lang_affix}_sw1_tg $dir $dir/graph_sw1_tg
+  utils/mkgraph.sh --self-loop-scale $slc data/lang${base_lang_affix}_sw1_tg $dir $graph_dir
 fi
 
 #          --online-ivector-dir exp/nnet3/ivectors_${decode_set} \
 
 decode_suff=sw1_tg
 wtstr="_a${acwt}_p${post_acwt}_s${slc}"
-graph_dir=$dir/graph_sw1_tg
 if [ $stage -le 15 ]; then
   iter_opts=
   if [ ! -z $decode_iter ]; then
@@ -240,15 +244,13 @@ if [ $stage -le 15 ]; then
       rm -r $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff} || true
       steps/nnet3/decode.sh --acwt $acwt --post-decode-acwt $post_acwt --lattice-beam $lat_beam --beam $beam \
         --nj 50 --cmd "$decode_cmd" $iter_opts --add-deltas $add_deltas \
-        $graph_dir data/${decode_set}_hires $dir/decode${wtstr}_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff} || exit 1;
-      ln -sf decode${wtstr}_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff} $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff}
+        $graph_dir data/${decode_set}_hires $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff} || exit 1;
       ~/bin/swbd.sh $dir
       if $has_fisher; then
         rm -r $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_fsh_fg || true
         steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
           data/lang${base_lang_affix}_sw1_{tg,fsh_fg} data/${decode_set}_hires \
-          $dir/decode${wtstr}_${decode_set}${decode_iter:+_$decode_iter}_sw1_{tg,fsh_fg} || exit 1;
-        ln -sf decode${wtstr}_${decode_set}${decode_iter:+_$decode_iter}_sw1_fsh_fg $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_fsh_fg
+          $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_{tg,fsh_fg} || exit 1;
       fi
       ) &
   done

@@ -225,6 +225,7 @@ struct Supervision {
   // first sequence; then 'frames_per_sequence' arcs for the second sequence, and so on).
   fst::StdVectorFst fst;
   std::vector<fst::StdVectorFst> e2e_fsts;
+  SparseMatrix<BaseFloat> ali;
 
   Supervision(): weight(1.0), num_sequences(1), frames_per_sequence(-1),
                  label_dim(-1), e2e(false) { }

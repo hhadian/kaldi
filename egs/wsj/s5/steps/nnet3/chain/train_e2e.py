@@ -128,6 +128,9 @@ def get_args():
     parser.add_argument("--trainer.tie-info", type=str, dest='tie_info',
                         default="",
                         help="Tying info like number of phone sets, etc.")
+    parser.add_argument("--trainer.max-dur-opts", type=str, dest='max_dur_opts',
+                        default="",
+                        help="max duration settings to apply at each iteration so shorter egs are trained first.")
 
 
     parser.add_argument("--trainer.frames-per-iter", type=int,
@@ -442,6 +445,7 @@ def train(args, run_opts):
     disable_mmi = True
     disable_viterbi = True
     equal_align = True  # keep it true for 20 first iterations
+    base_iter = 0
     for iter in range(num_iters):
 
         percent = num_archives_processed * 100.0 / num_archives_to_process
@@ -463,6 +467,8 @@ def train(args, run_opts):
         current_num_jobs = int(0.5 + args.num_jobs_initial
                                + (args.num_jobs_final - args.num_jobs_initial)
                                * float(iter) / num_iters)
+        if iter < 80 and args.max_dur_opts != "":
+            current_num_jobs = 1
 
         if args.stage <= iter:
             model_file = "{dir}/{iter}.mdl".format(dir=args.dir, iter=iter)
@@ -499,16 +505,22 @@ def train(args, run_opts):
                 chain_opts += " --pdf-map-filename={}/pdf-map.txt".format(
                     args.dir)
 
+            max_dur_this_iter = 0
+            if args.max_dur_opts != "":
+                max_dur_start, max_dur_step = (float(a) for a in args.max_dur_opts.split(","))
+                max_dur_this_iter = max_dur_start + max_dur_step * (iter/8)
+                chain_opts += " --max-dur={}".format(max_dur_this_iter)
 
             shrink_info_str = ''
             if shrinkage_value != 1.0:
                 shrink_info_str = 'shrink: {0:0.5f}'.format(shrinkage_value)
             logger.info("Iter: {0}/{1}    "
                         "Epoch: {2:0.2f}/{3:0.1f} ({4:0.1f}% complete)    "
-                        "lr: {5:0.6f}    {6}".format(iter, num_iters - 1,
+                        "lr: {5:0.6f}  nj: {6} max-dur:{7}  {8}".format(iter, num_iters - 1,
                                                      epoch, args.num_epochs,
                                                      percent,
-                                                     lrate, shrink_info_str))
+                                                     lrate, current_num_jobs, max_dur_this_iter,
+                                                     shrink_info_str))
 
             chain_lib.train_one_iteration(
                 dir=args.dir,
