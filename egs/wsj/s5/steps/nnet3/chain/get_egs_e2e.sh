@@ -224,7 +224,7 @@ num_archives=$[$num_frames/$frames_per_iter+1]
 # We may have to first create a smaller number of larger archives, with number
 # $num_archives_intermediate, if $num_archives is more than the maximum number
 # of open filehandles that the system allows per process (ulimit -n).
-max_open_filehandles=$(ulimit -n) || exit 1
+max_open_filehandles=500 #$(ulimit -n) || exit 1
 num_archives_intermediate=$num_archives
 archives_multiple=1
 while [ $[$num_archives_intermediate+4] -gt $max_open_filehandles ]; do

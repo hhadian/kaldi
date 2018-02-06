@@ -145,6 +145,9 @@ for d in reversed(durs):
   if to_ignore_dur * 100.0 / tot_dur > args.range_factor:
     end_dur = d
     break
+
+if start_dur < 0.3:
+  start_dur = 0.3
 print("Durations in the range [{},{}] will be covered. Coverage rate: {}%".format(start_dur, end_dur, 100.0-args.range_factor*2))
 print("There will be {} unique allowed lengths for the utterances.".format(int(math.log(end_dur/start_dur)/math.log(factor))))
 #sys.exit(0)

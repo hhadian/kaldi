@@ -42,7 +42,7 @@ slc=1.0
 shared_phones=true
 train_set=train_cleaned_seg_spEx_hires
 topo_affix=_chain
-tree_affix=_shared-tr1sl1
+tree_affix=_sharedT1S1
 topo_opts=
 uniform_lexicon=false
 first_layer_splice=-1,0,1
@@ -60,6 +60,7 @@ prefinal_dim=$dim
 frame_subsampling_factor=3
 normalize_egs=false
 n_tie=0
+use_final_stddev=true
 
 proportional_shrink=0.0
 chunk_left_context=0
@@ -88,7 +89,7 @@ fi
 
 lang=data/lang_e2e${topo_affix}
 treedir=exp/chain/e2e_bitree${tree_affix}_topo${topo_affix}
-dir=exp/chain/e2e_nodrop_7L_biphone${affix}${topo_affix}${tree_affix}
+dir=exp/chain/e2e_nodrop_biphone${affix}${topo_affix}${tree_affix}
 echo "Run $rid, dir = $dir" >> drop_runs.log
 
 input_dim=40
@@ -127,6 +128,10 @@ fi
 
 if [ $stage -le 12 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
+  final_stddev=0
+  if $use_final_stddev; then
+    final_stddev=$(echo "print(1.0/$dim)" | python)
+  fi
 
   if $disable_ng; then
     common="affine-comp=AffineComponent"
@@ -159,7 +164,7 @@ if [ $stage -le 12 ]; then
   $nnet_block name=tdnn6 input=Append(-$lc2,0,$rc2) dim=$dim max-change=$hid_max_change self-repair-scale=$self_repair $common
 
   $nnet_block name=prefinal-chain input=tdnn6 dim=$prefinal_dim target-rms=$final_layer_normalize_target self-repair-scale=$self_repair $common
-  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common
+  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common param-stddev=$final_stddev
 
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/

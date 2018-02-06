@@ -22,7 +22,7 @@ final_layer_normalize_target=0.5
 num_jobs_initial=3
 num_jobs_final=16
 #minibatch_size=150=32/300=20,8/600=10/1200=4
-minibatch_size=150=128,64/300=64,32/600=28,16/1200=14,8
+minibatch_size=150=100,64/300=50,32/600=28,16/1200=8
 remove_egs=true
 common_egs_dir=
 no_mmi_percent=0
@@ -55,6 +55,7 @@ nnet_block=relu-batchnorm-layer
 no_viterbi_percent=100
 src_tree_dir=  # set this in case we want to use another tree (this won't be end2end anymore)
 drop_schedule=
+drop_prop=0.2
 combine_sto_penalty=0.0
 dbl_chk=true
 n_tie=0
@@ -90,9 +91,14 @@ where "nvcc" is installed.
 EOF
 fi
 
+drop_affix=
+if [ ! -z $drop_schedule ]; then
+  drop_affix="_drop_2Ls"
+fi
+
 lang=data/lang_e2e${topo_affix}
 treedir=exp/chain/e2e_bitree${tree_affix}_topo${topo_affix}
-dir=exp/chain/e2e_tlstm_biphone${affix}${topo_affix}${tree_affix}
+dir=exp/chain/e2e${drop_affix}_tlstm_biphone${affix}${topo_affix}${tree_affix}
 echo "Run $rid, dir = $dir" >> tlstm_runs.log
 
 input_dim=40
@@ -146,6 +152,7 @@ if [ $stage -le 12 ]; then
   fi
 
   mkdir -p $dir/configs
+  if [ -z $drop_schedule ]; then
   cat <<EOF > $dir/configs/network.xconfig
 
   input dim=$input_dim name=input
@@ -166,6 +173,29 @@ if [ $stage -le 12 ]; then
   output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common param-stddev=$final_stddev
 
 EOF
+
+  else
+  cat <<EOF > $dir/configs/network.xconfig
+
+  input dim=$input_dim name=input
+
+  $nnet_block name=tdnn1 input=Append($first_layer_splice) dim=$dim max-change=$hid_max_change self-repair-scale=$self_repair $common
+  relu-batchnorm-dropout-layer name=tdnn2 input=Append(-1,0,1) dropout-proportion=$drop_prop dim=$dim
+  $nnet_block name=tdnn3 input=Append(-1,0,1) dim=$dim
+
+  # check steps/libs/nnet3/xconfig/lstm.py for the other options and defaults
+  fast-lstmp-layer name=fastlstm1 cell-dim=$dim recurrent-projection-dim=$pdim non-recurrent-projection-dim=$pdim delay=-3 $lstm_opts
+  $nnet_block name=tdnn4 input=Append(-3,0,3) dim=$dim
+  $nnet_block name=tdnn5 input=Append(-3,0,3) dim=$dim
+  fast-lstmp-layer name=fastlstm2 cell-dim=$dim recurrent-projection-dim=$pdim non-recurrent-projection-dim=$pdim delay=-3 $lstm_opts
+  relu-batchnorm-dropout-layer name=tdnn6 input=Append(-3,0,3) dropout-proportion=$drop_prop dim=$dim
+  $nnet_block name=tdnn7 input=Append(-3,0,3) dim=$dim
+  fast-lstmp-layer name=fastlstm3 cell-dim=$dim recurrent-projection-dim=$pdim non-recurrent-projection-dim=$pdim delay=-3 $lstm_opts
+
+  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common param-stddev=$final_stddev
+
+EOF
+  fi
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
 fi
 
@@ -185,6 +215,7 @@ if [ $stage -le 13 ]; then
     --feat.cmvn-opts "$cmvn_opts" \
     --chain.leaky-hmm-coefficient $leaky_hmm_coeff \
     --chain.l2-regularize $l2_regularize \
+    --trainer.dropout-schedule "$drop_schedule" \
     --chain.apply-deriv-weights false \
     --chain.lm-opts="--num-extra-lm-states=2000" \
     --egs.dir "$common_egs_dir" \

@@ -21,7 +21,7 @@ max_param_change=2.0
 final_layer_normalize_target=0.5
 num_jobs_initial=3
 num_jobs_final=16
-minibatch_size=150=128,64/300=90,64,32/600=45,32,16/1200=16,8
+minibatch_size=150=128,64/300=64,32/600=32,16/1200=16,8
 remove_egs=true
 common_egs_dir=
 no_mmi_percent=20
@@ -158,7 +158,7 @@ if [ $stage -le 12 ]; then
     $nnet_block name=tdnn7 input=Append(-3,0,3) dim=$dim $common
 
     $nnet_block name=prefinal-chain input=tdnn7 dim=$dim target-rms=$final_layer_normalize_target self-repair-scale=$self_repair $common
-    output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common
+    output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common param-stddev=$final_stddev
 EOF
   else
     cat <<EOF > $dir/configs/network.xconfig
