@@ -141,7 +141,7 @@ cat $test_old > $test_new
 cat $val1_old $val2_old > $val_new
 
 if [ $stage -le 0 ]; then
-  #local/process_data.py data/local split data/train --dataset train || exit 1
+  #local/process_data_1.py data/local split data/train --dataset train || exit 1
   #local/process_data_aachen_split.py data/local split data/test --dataset eval || exit 1
   #local/process_data_aachen_split.py data/local split data/val --dataset valid || exit 1
 
