@@ -65,7 +65,7 @@ if [ $stage -le 3 ]; then
 
   # prepare the unk model for open-vocab decoding
   utils/lang/make_unk_lm.sh --ngram-order 4 --num-extra-ngrams 7500 data/train/dict exp/unk_lang_model
-  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
+  local/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
                         --unk-fst exp/unk_lang_model/unk_fst.txt data/train/dict "<unk>" data/lang/temp data/lang_unk
   cp data/lang_test/G.fst data/lang_unk/G.fst
 fi
