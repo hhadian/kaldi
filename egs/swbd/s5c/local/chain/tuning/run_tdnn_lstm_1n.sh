@@ -1,26 +1,28 @@
 #!/bin/bash
 
-# tdnn_lstm_1m is same as tdnn_lstm_1j, but with batchnorm-layer and decay-time
-# option
 
-# After comparing different combinations of dropout(with or without) and decay-time
-# option(20, 40 or without), we found this setup is best.
+# 1n is as 1m but with significant changes, replacing TDNN layers with a
+# structure like run_tdnn_7n.sh.  Seems better!  But the improvement
+# versus the best TDNN system (see run_tdnn_7n.sh) is so small that it's
+# not really worth it when you consider how much slower it is.
 
-#System                   tdnn_lstm_1l_ld5  tdnn_lstm_1m_ld   1m_online
-#WER on train_dev(tg)         12.41             12.37           12.21
-#WER on train_dev(fg)         11.59             11.46           11.41
-#WER on eval2000(tg)          14.8              14.8            14.9
-#WER on eval2000(fg)          13.5              13.5            13.6
-# WER on rt03(tg)                               18.6
-# WER on rt03(fg)                               16.3
+# local/chain/compare_wer_general.sh --rt03 tdnn_lstm_1m_ld5_sp tdnn_lstm_1m_ld5_sp_online tdnn_lstm1n_sp tdnn_lstm1n_sp_online
+# System                tdnn_lstm_1m_ld5_sp tdnn_lstm_1m_ld5_sp_online tdnn_lstm1n_sp tdnn_lstm1n_sp_online
+# WER on train_dev(tg)      12.33     12.21     12.38     12.49
+# WER on train_dev(fg)      11.42     11.41     11.48     11.59
+# WER on eval2000(tg)        15.2      15.1      15.0      14.9
+# WER on eval2000(fg)        13.8      13.8      13.5      13.5
+# WER on rt03(tg)            18.6      18.4      18.0      18.0
+# WER on rt03(fg)            16.3      16.1      15.8      15.8
+# Final train prob         -0.082     0.000    -0.084     0.000
+# Final valid prob         -0.099     0.000    -0.104     0.000
+# Final train prob (xent)        -0.959     0.000    -1.154     0.000
+# Final valid prob (xent)       -1.0305    0.0000   -1.2190    0.0000
+# Num-parameters               39558436         0  27773348         0
+#
 
-#Final train prob             -0.069            -0.081
-#Final valid prob             -0.095            -0.100
-#Final train prob (xent)      -0.913            -0.950
-#Final valid prob (xent)      -1.0820           -1.0341
 
-# exp/chain/tdnn_lstm_1l_ld5_sp: num-iters=327 nj=3..16 num-params=39.6M dim=40+100->6074 combine=-0.088->-0.084 xent:train/valid[217,326,final]=(-3.32,-0.961,-0.913/-3.40,-1.13,-1.08) logprob:train/valid[217,326,final]=(-0.176,-0.072,-0.069/-0.198,-0.097,-0.095)
-# exp/chain/tdnn_lstm_1m_ld5_sp: num-iters=262 nj=3..16 num-params=39.6M dim=40+100->6050 combine=-0.091->-0.088 xent:train/valid[173,261,final]=(-1.33,-0.947,-0.950/-1.39,-1.03,-1.03) logprob:train/valid[173,261,final]=(-0.112,-0.080,-0.081/-0.127,-0.100,-0.100)
+# exp/chain/tdnn_lstm1n_sp: num-iters=394 nj=3..16 num-params=27.8M dim=40+100->6034 combine=-0.081->-0.080 (over 5) xent:train/valid[261,393,final]=(-1.59,-1.14,-1.15/-1.64,-1.22,-1.22) logprob:train/valid[261,393,final]=(-0.105,-0.086,-0.084/-0.123,-0.107,-0.104)
 
 set -e
 
@@ -29,14 +31,13 @@ stage=0
 train_stage=-10
 get_egs_stage=-10
 speed_perturb=true
-dir=exp/chain/tdnn_lstm_1m # Note: _sp will get added to this if $speed_perturb == true.
+affix=1n
 decode_iter=
 decode_dir_affix=
 decode_nj=50
 if [ -e data/rt03 ]; then maybe_rt03=rt03; else maybe_rt03= ; fi
 
 # training options
-leftmost_questions_truncate=-1
 frames_per_chunk=140,100,160
 frames_per_chunk_primary=$(echo $frames_per_chunk | cut -d, -f1)
 chunk_left_context=40
@@ -49,11 +50,10 @@ extra_left_context=50
 extra_right_context=0
 dropout_schedule='0,0@0.20,0.3@0.50,0'
 
-remove_egs=false
+remove_egs=true
 common_egs_dir=
 
 test_online_decoding=true  # if true, it will run the last decoding stage.
-affix=
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
 
@@ -78,9 +78,7 @@ if [ "$speed_perturb" == "true" ]; then
   suffix=_sp
 fi
 
-dir=$dir${affix:+_$affix}
-if [ $label_delay -gt 0 ]; then dir=${dir}_ld$label_delay; fi
-dir=${dir}$suffix
+dir=exp/chain/tdnn_lstm${affix}${suffix}
 train_set=train_nodup$suffix
 ali_dir=exp/tri4_ali_nodup$suffix
 treedir=exp/chain/tri5_7d_tree$suffix
@@ -120,7 +118,6 @@ fi
 if [ $stage -le 11 ]; then
   # Build a tree using our new topology.
   steps/nnet3/chain/build_tree.sh --frame-subsampling-factor 3 \
-      --leftmost-questions-truncate $leftmost_questions_truncate \
       --context-opts "--context-width=2 --central-position=1" \
       --cmd "$train_cmd" 7000 data/$train_set $lang $ali_dir $treedir
 fi
@@ -131,46 +128,47 @@ if [ $stage -le 12 ]; then
   num_targets=$(tree-info $treedir/tree |grep num-pdfs|awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
 
-  lstm_opts="decay-time=40"
+  opts="l2-regularize=0.002"
+  linear_opts="orthonormal-constraint=1.0"
+  lstm_opts="l2-regularize=0.0005 decay-time=40"
+  output_opts="l2-regularize=0.0005 output-delay=$label_delay max-change=1.5 dim=$num_targets"
+
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
   input dim=100 name=ivector
   input dim=40 name=input
 
-  # please note that it is important to have input layer with the name=input
-  # as the layer immediately preceding the fixed-affine-layer to enable
-  # the use of short notation for the descriptor
-  fixed-affine-layer name=lda input=Append(-2,-1,0,1,2,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
+  fixed-affine-layer name=lda input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) affine-transform-file=$dir/configs/lda.mat
 
   # the first splicing is moved before the lda layer, so no splicing here
-  relu-batchnorm-layer name=tdnn1 dim=1024
-  relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=1024
-  relu-batchnorm-layer name=tdnn3 input=Append(-1,0,1) dim=1024
+  relu-batchnorm-layer name=tdnn1 $opts dim=1280
+  linear-component name=tdnn2l dim=256 $linear_opts input=Append(-1,0)
+  relu-batchnorm-layer name=tdnn2 $opts input=Append(0,1) dim=1280
+  linear-component name=tdnn3l dim=256 $linear_opts
+  relu-batchnorm-layer name=tdnn3 $opts dim=1280
+  linear-component name=tdnn4l dim=256 $linear_opts input=Append(-1,0)
+  relu-batchnorm-layer name=tdnn4 $opts input=Append(0,1) dim=1280
+  linear-component name=tdnn5l dim=256 $linear_opts
+  relu-batchnorm-layer name=tdnn5 $opts dim=1280 input=Append(tdnn5l, tdnn3l)
+  linear-component name=tdnn6l dim=256 $linear_opts input=Append(-3,0)
+  relu-batchnorm-layer name=tdnn6 $opts input=Append(0,3) dim=1280
+  linear-component name=lstm1l dim=256 $linear_opts input=Append(-3,0)
+  fast-lstmp-layer name=lstm1 cell-dim=1024 recurrent-projection-dim=256 non-recurrent-projection-dim=128 delay=-3 dropout-proportion=0.0 $lstm_opts
+  relu-batchnorm-layer name=tdnn7 $opts input=Append(0,3,tdnn6l,tdnn4l,tdnn2l) dim=1280
+  linear-component name=tdnn8l dim=256 $linear_opts input=Append(-3,0)
+  relu-batchnorm-layer name=tdnn8 $opts input=Append(0,3) dim=1280
+  linear-component name=lstm2l dim=256 $linear_opts input=Append(-3,0)
+  fast-lstmp-layer name=lstm2 cell-dim=1280 recurrent-projection-dim=256 non-recurrent-projection-dim=128 delay=-3 dropout-proportion=0.0 $lstm_opts
+  relu-batchnorm-layer name=tdnn9 $opts input=Append(0,3,tdnn8l,tdnn6l,tdnn4l) dim=1280
+  linear-component name=tdnn10l dim=256 $linear_opts input=Append(-3,0)
+  relu-batchnorm-layer name=tdnn10 $opts input=Append(0,3) dim=1280
+  linear-component name=lstm3l dim=256 $linear_opts input=Append(-3,0)
+  fast-lstmp-layer name=lstm3 cell-dim=1280 recurrent-projection-dim=256 non-recurrent-projection-dim=128 delay=-3 dropout-proportion=0.0 $lstm_opts
 
-  # check steps/libs/nnet3/xconfig/lstm.py for the other options and defaults
-  fast-lstmp-layer name=lstm1 cell-dim=1024 recurrent-projection-dim=256 non-recurrent-projection-dim=256 delay=-3 dropout-proportion=0.0 $lstm_opts
-  relu-batchnorm-layer name=tdnn4 input=Append(-3,0,3) dim=1024
-  relu-batchnorm-layer name=tdnn5 input=Append(-3,0,3) dim=1024
-  fast-lstmp-layer name=lstm2 cell-dim=1024 recurrent-projection-dim=256 non-recurrent-projection-dim=256 delay=-3 dropout-proportion=0.0 $lstm_opts
-  relu-batchnorm-layer name=tdnn6 input=Append(-3,0,3) dim=1024
-  relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=1024
-  fast-lstmp-layer name=lstm3 cell-dim=1024 recurrent-projection-dim=256 non-recurrent-projection-dim=256 delay=-3 dropout-proportion=0.0 $lstm_opts
+  output-layer name=output input=lstm3  include-log-softmax=false $output_opts
 
-  ## adding the layers for chain branch
-  output-layer name=output input=lstm3 output-delay=$label_delay include-log-softmax=false dim=$num_targets max-change=1.5
-
-  # adding the layers for xent branch
-  # This block prints the configs for a separate output that will be
-  # trained with a cross-entropy objective in the 'chain' models... this
-  # has the effect of regularizing the hidden parts of the model.  we use
-  # 0.5 / args.xent_regularize as the learning rate factor- the factor of
-  # 0.5 / args.xent_regularize is suitable as it means the xent
-  # final-layer learns at a rate independent of the regularization
-  # constant; and the 0.5 was tuned so as to make the relative progress
-  # similar in the xent and regular final layers.
-  output-layer name=output-xent input=lstm3 output-delay=$label_delay dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5
-
+  output-layer name=output-xent input=lstm3 learning-rate-factor=$learning_rate_factor $output_opts
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
 fi
@@ -178,7 +176,7 @@ fi
 if [ $stage -le 13 ]; then
   if [[ $(hostname -f) == *.clsp.jhu.edu ]] && [ ! -d $dir/egs/storage ]; then
     utils/create_split_dir.pl \
-     /export/b0{5,6,7,8}/$USER/kaldi-data/egs/swbd-$(date +'%m_%d_%H_%M')/s5c/$dir/egs/storage $dir/egs/storage
+      /export/c0{1,2,5,7}/$USER/kaldi-data/egs/swbd-$(date +'%m_%d_%H_%M')/s5c/$dir/egs/storage $dir/egs/storage
   fi
 
   steps/nnet3/chain/train.py --stage $train_stage \
@@ -187,15 +185,14 @@ if [ $stage -le 13 ]; then
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
     --chain.xent-regularize $xent_regularize \
     --chain.leaky-hmm-coefficient 0.1 \
-    --chain.l2-regularize 0.00005 \
+    --chain.l2-regularize 0.0 \
     --chain.apply-deriv-weights false \
     --chain.lm-opts="--num-extra-lm-states=2000" \
     --trainer.dropout-schedule $dropout_schedule \
     --trainer.num-chunk-per-minibatch 64,32 \
     --trainer.frames-per-iter 1500000 \
     --trainer.max-param-change 2.0 \
-    --trainer.num-epochs 4 \
-    --trainer.optimization.shrink-value 0.99 \
+    --trainer.num-epochs 6 \
     --trainer.optimization.num-jobs-initial 3 \
     --trainer.optimization.num-jobs-final 16 \
     --trainer.optimization.initial-effective-lrate 0.001 \
