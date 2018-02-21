@@ -6,6 +6,7 @@
 """ This script reads the extracted IAM database files and creates
     the following files (for the data subset selected via --dataset):
     text, utt2spk, images.scp.
+
   Eg. local/process_data.py data/local data/train data --dataset train
   Eg. text file: 000_a01-000u-00 A MOVE to stop Mr. Gaitskell from
       utt2spk file: 000_a01-000u-00 000

@@ -35,7 +35,6 @@ if [[ ! -f $download_dir/lines.tgz && -z $username ]]; then
   echo "Please register at http://www.fki.inf.unibe.ch/databases/iam-handwriting-database"
   echo "... and then call this script again with --username <username> --password <password>"
   echo ""
-  exit 1
 fi
 
 lines=data/local/lines
@@ -141,31 +140,14 @@ cat $test_old > $test_new
 cat $val1_old $val2_old > $val_new
 
 if [ $stage -le 0 ]; then
-  #local/process_data_1.py data/local split data/train --dataset train || exit 1
-  #local/process_data_aachen_split.py data/local split data/test --dataset eval || exit 1
-  #local/process_data_aachen_split.py data/local split data/val --dataset valid || exit 1
-
   local/process_data.py data/local data/train --dataset train || exit 1
   local/process_data.py data/local data/test --dataset test || exit 1
   local/process_data.py data/local data/val --dataset validation || exit 1
 
-  for dataset in train test val; do
-    cp data/$dataset/utt2spk data/$dataset/utt2spk_tmp
-    cp data/$dataset/text data/$dataset/text_tmp
-    cp data/$dataset/images.scp data/$dataset/images_tmp.scp
-    sort data/$dataset/utt2spk_tmp > data/$dataset/utt2spk
-    sort data/$dataset/text_tmp > data/$dataset/text
-    sort data/$dataset/images_tmp.scp > data/$dataset/images.scp
-    rm data/$dataset/utt2spk_tmp data/$dataset/text_tmp data/$dataset/images_tmp.scp
-  done
-
   utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   utils/utt2spk_to_spk2utt.pl data/test/utt2spk > data/test/spk2utt
-  utils/utt2spk_to_spk2utt.pl data/val/utt2spk > data/val/spk2utt
 
-fi
-
-if [ $stage -le 1 ]; then
   mv data/local/lobcorpus/0167/download/LOB_COCOA/lob.txt data/local/lobcorpus/0167/download/LOB_COCOA/lob_1.txt
   local/remove_utterances_from_corpus_1.py data/local/lobcorpus/0167/download/LOB_COCOA/ data/test/ data/val/ data/local/lobcorpus/0167/download/LOB_COCOA/
+
 fi

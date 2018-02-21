@@ -46,27 +46,20 @@ if [ $stage -le 2 ]; then
   local/prepare_dict.sh
   local/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --sil-prob 0.95 \
                         data/local/dict "<unk>" data/lang/temp data/lang
-fi
 
-#if [ $stage -le 3 ]; then
-#  echo "$0: Estimating a language model for decoding..."
-#  local/train_lm.sh
-#  utils/format_lm.sh data/lang data/local/local_lm/data/arpa/3gram_big.arpa.gz \
-#                     data/local/dict/lexicon.txt data/lang_test
-#fi
+  #utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --sil-prob 0.95 \
+  #                      data/local/dict "<unk>" data/lang/temp data/lang
+fi
 
 if [ $stage -le 3 ]; then
   echo "$0: Estimating a language model for decoding..."
   local/train_lm.sh
-  mkdir -p data/lang_test
-  cp -R data/lang/. data/lang_test/
   utils/format_lm.sh data/lang data/local/local_lm/data/arpa/3gram_big.arpa.gz \
                      data/local/dict/lexicon.txt data/lang_test
 
-  # prepare the unk model for open-vocab decoding
-  utils/lang/make_unk_lm.sh --ngram-order 4 --num-extra-ngrams 7500 data/train/dict exp/unk_lang_model
-  local/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
-                        --unk-fst exp/unk_lang_model/unk_fst.txt data/train/dict "<unk>" data/lang/temp data/lang_unk
+  utils/lang/make_unk_lm.sh --ngram-order 4 --num-extra-ngrams 10000 data/local/dict exp/unk_lang_model
+  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
+                        --unk-fst exp/unk_lang_model/unk_fst.txt data/local/dict "<unk>" data/lang/temp data/lang_unk
   cp data/lang_test/G.fst data/lang_unk/G.fst
 fi
 
@@ -124,8 +117,8 @@ fi
 if [ $stage -le 11 ]; then
   utils/mkgraph.sh data/lang_test exp/tri3 exp/tri3/graph
 
-  steps/decode_fmllr.sh --nj $nj --cmd $cmd exp/tri3/graph \
-    data/test exp/tri3/decode_test
+  #steps/decode_fmllr.sh --nj $nj --cmd $cmd exp/tri3/graph \
+  #  data/test exp/tri3/decode_test
 fi
 
 if [ $stage -le 12 ]; then

@@ -132,12 +132,11 @@ print (row_to_keep.count(False))
 
 # for remaining utterances remove 
 # completely uppercase rows and find again
-# increase row space and decrease utterance space
+# increase row space
 remaining_utterances_2 = dict()
 for line_id, line_to_find in remaining_utterances.items():
 
-    # decrease utterance space
-    line_to_find = line_to_find.strip()[8:]
+    line_to_find = line_to_find.strip()
     found_line = False
 
     for i in range(1, (len(corpus_text_wo_sc) - 5)):
@@ -174,6 +173,7 @@ for i in range(len(original_corpus_text)):
         text_fh.write(transcript + '\n')
 
 print(remaining_utterances_2)
+print(len(remaining_utterances_2))
 print (len(original_corpus_text))
 print (len(utterance_dict))
 print (row_to_keep.count(False))

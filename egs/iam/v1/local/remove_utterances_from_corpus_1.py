@@ -106,16 +106,10 @@ read_corpus(dataset_path)
 # find majority of utterances below
 # for utterances which were not found
 # add them to remaining_utterances
-#text_fh = open(output_file, 'w')
 row_to_keep = [True for i in range(len(original_corpus_text))]
 remaining_utterances = dict()
 for line_id, line_to_find in utterance_dict.items():
-    if len(line_to_find) < 10:
-        remaining_utterances[line_id] = line_to_find
-        continue
     found_line = False
-    val = "Key: " + line_id + "utterance: " + line_to_find
-    #text_fh.write(val + '\n')
     for i in range(1, (len(corpus_text_lowercase_wo_sc) - 2)):
         # combine 3 consequtive lines of the corpus into single line
         prev_words = corpus_text_lowercase_wo_sc[i - 1].strip()
@@ -123,26 +117,9 @@ for line_id, line_to_find in utterance_dict.items():
         next_words = corpus_text_lowercase_wo_sc[i + 1].strip()
         new_line = prev_words + curr_words + next_words
         transcript = ''.join(new_line)
-        index_curr_words = transcript.index(curr_words)
-        index_next_words = transcript.index(next_words)
-        len_utt = len(line_to_find)
         if line_to_find in transcript:
-            index_line_to_find = transcript.index(line_to_find)
-
-            write_utt = False
-            if index_curr_words < index_line_to_find < index_next_words:
-                write_utt = True
-            elif index_curr_words < (index_line_to_find + len_utt) < index_next_words:
-                write_utt = True
-            elif (index_line_to_find < index_curr_words) and (index_line_to_find + len_utt) > index_next_words:
-                write_utt = True
-
-            if write_utt:
-                found_line = True
-                row_to_keep[i] = False
-                val = "line number: " + str(i) + "original Corpus text: " + original_corpus_text[i]
-                val = val + 'selected corpus text:  ' + transcript
-                #text_fh.write(val + '\n')
+            found_line = True
+            row_to_keep[i] = False
     if not found_line:
         remaining_utterances[line_id] = line_to_find
 

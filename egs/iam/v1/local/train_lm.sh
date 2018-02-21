@@ -59,7 +59,6 @@ if [ $stage -le 0 ]; then
   # Using LOB and brown corpus.
   cat data/local/lobcorpus/0167/download/LOB_COCOA/lob.txt > ${dir}/data/text/text.txt
   cat data/local/browncorpus/brown.txt >> ${dir}/data/text/text.txt
-
   # use the validation data as the dev set.
   # Note: the name 'dev' is treated specially by pocolm, it automatically
   # becomes the dev set.
