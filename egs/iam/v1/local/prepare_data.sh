@@ -35,7 +35,6 @@ if [[ ! -f $download_dir/lines.tgz && -z $username ]]; then
   echo "Please register at http://www.fki.inf.unibe.ch/databases/iam-handwriting-database"
   echo "... and then call this script again with --username <username> --password <password>"
   echo ""
-  exit 1
 fi
 
 lines=data/local/lines
@@ -147,4 +146,8 @@ if [ $stage -le 0 ]; then
 
   utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   utils/utt2spk_to_spk2utt.pl data/test/utt2spk > data/test/spk2utt
+
+  mv data/local/lobcorpus/0167/download/LOB_COCOA/lob.txt data/local/lobcorpus/0167/download/LOB_COCOA/lob_1.txt
+  local/remove_utterances_from_corpus_1.py data/local/lobcorpus/0167/download/LOB_COCOA/ data/test/ data/val/ data/local/lobcorpus/0167/download/LOB_COCOA/
+
 fi
