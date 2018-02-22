@@ -46,9 +46,6 @@ if [ $stage -le 2 ]; then
   local/prepare_dict.sh
   local/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --sil-prob 0.95 \
                         data/local/dict "<unk>" data/lang/temp data/lang
-
-  #utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --sil-prob 0.95 \
-  #                      data/local/dict "<unk>" data/lang/temp data/lang
 fi
 
 if [ $stage -le 3 ]; then
@@ -58,7 +55,7 @@ if [ $stage -le 3 ]; then
                      data/local/dict/lexicon.txt data/lang_test
 
   utils/lang/make_unk_lm.sh --ngram-order 4 --num-extra-ngrams 10000 data/local/dict exp/unk_lang_model
-  utils/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 \
+  local/prepare_lang.sh --num-sil-states 4 --num-nonsil-states 8 --sil-prob 0.95 \
                         --unk-fst exp/unk_lang_model/unk_fst.txt data/local/dict "<unk>" data/lang/temp data/lang_unk
   cp data/lang_test/G.fst data/lang_unk/G.fst
 fi
@@ -68,12 +65,12 @@ if [ $stage -le 4 ]; then
     data/lang exp/mono
 fi
 
-#if [ $stage -le 5 ]; then
-#  utils/mkgraph.sh --mono data/lang_test exp/mono exp/mono/graph
-#
-#  steps/decode.sh --nj $nj --cmd $cmd exp/mono/graph data/test \
-#    exp/mono/decode_test
-#fi
+if [ $stage -le 5 ]; then
+  utils/mkgraph.sh --mono data/lang_test exp/mono exp/mono/graph
+
+  steps/decode.sh --nj $nj --cmd $cmd exp/mono/graph data/test \
+    exp/mono/decode_test
+fi
 
 if [ $stage -le 6 ]; then
   steps/align_si.sh --nj $nj --cmd $cmd data/train data/lang \
@@ -83,12 +80,12 @@ if [ $stage -le 6 ]; then
     exp/mono_ali exp/tri
 fi
 
-#if [ $stage -le 7 ]; then
-#  utils/mkgraph.sh data/lang_test exp/tri exp/tri/graph
-#
-#  steps/decode.sh --nj $nj --cmd $cmd exp/tri/graph data/test \
-#    exp/tri/decode_test
-#fi
+if [ $stage -le 7 ]; then
+  utils/mkgraph.sh data/lang_test exp/tri exp/tri/graph
+
+  steps/decode.sh --nj $nj --cmd $cmd exp/tri/graph data/test \
+    exp/tri/decode_test
+fi
 
 if [ $stage -le 8 ]; then
   steps/align_si.sh --nj $nj --cmd $cmd data/train data/lang \
@@ -99,12 +96,12 @@ if [ $stage -le 8 ]; then
     data/train data/lang exp/tri_ali exp/tri2
 fi
 
-#if [ $stage -le 9 ]; then
-#  utils/mkgraph.sh data/lang_test exp/tri2 exp/tri2/graph
-#
-#  steps/decode.sh --nj $nj --cmd $cmd exp/tri2/graph \
-#    data/test exp/tri2/decode_test
-#fi
+if [ $stage -le 9 ]; then
+  utils/mkgraph.sh data/lang_test exp/tri2 exp/tri2/graph
+
+  steps/decode.sh --nj $nj --cmd $cmd exp/tri2/graph \
+    data/test exp/tri2/decode_test
+fi
 
 if [ $stage -le 10 ]; then
   steps/align_fmllr.sh --nj $nj --cmd $cmd --use-graphs true \
@@ -117,8 +114,8 @@ fi
 if [ $stage -le 11 ]; then
   utils/mkgraph.sh data/lang_test exp/tri3 exp/tri3/graph
 
-  #steps/decode_fmllr.sh --nj $nj --cmd $cmd exp/tri3/graph \
-  #  data/test exp/tri3/decode_test
+  steps/decode_fmllr.sh --nj $nj --cmd $cmd exp/tri3/graph \
+    data/test exp/tri3/decode_test
 fi
 
 if [ $stage -le 12 ]; then
