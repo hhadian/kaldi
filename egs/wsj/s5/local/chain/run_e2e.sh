@@ -60,6 +60,8 @@ dbl_chk=false
 prefinal_dim=$dim
 frame_subsampling_factor=3
 normalize_egs=false
+use_final_stddev=false
+max_dur_opts=
 
 proportional_shrink=0.0
 chunk_left_context=0
@@ -105,7 +107,7 @@ if [ $stage -le 10 ]; then
   # topo file. [note, it really has two states.. the first one is only repeated
   # once, the second one has zero or more repeats.]
   rm -rf $lang
-  cp -r data/lang $lang
+  cp -r data/lang_nosp $lang
   silphonelist=$(cat $lang/phones/silence.csl) || exit 1;
   nonsilphonelist=$(cat $lang/phones/nonsilence.csl) || exit 1;
   # Use our special topology... note that later on may have to tune this
@@ -144,6 +146,10 @@ if [ $stage -le 12 ]; then
   fi
   num_targets=$(tree-info $treedir/tree |grep num-pdfs|awk '{print $2}')
   #learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
+  final_stddev=0
+  if $use_final_stddev; then
+    final_stddev=$(echo "print(1.0/$dim)" | python)
+  fi
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
@@ -159,7 +165,7 @@ if [ $stage -le 12 ]; then
   $nnet_block name=tdnn6 input=Append(-$lc2,0,$rc2) dim=$dim max-change=$hid_max_change self-repair-scale=$self_repair $common
 
   $nnet_block name=prefinal-chain input=tdnn6 dim=$prefinal_dim target-rms=$final_layer_normalize_target self-repair-scale=$self_repair $common
-  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common
+  output-layer name=output include-log-softmax=true dim=$num_targets max-change=$final_max_change $common  param-stddev=$final_stddev
 
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
@@ -192,6 +198,7 @@ if [ $stage -le 13 ]; then
     --trainer.num-chunk-per-minibatch $minibatch_size \
     --trainer.frames-per-iter $frames_per_iter \
     --trainer.num-epochs $num_epochs \
+    --trainer.max-dur-opts "$max_dur_opts" \
     --trainer.optimization.combine-sum-to-one-penalty $combine_sto_penalty \
     --trainer.optimization.momentum $momentum \
     --trainer.optimization.num-jobs-initial $num_jobs_initial \
@@ -217,15 +224,15 @@ if [ $stage -le 14 ]; then
   # as long as phones.txt was compatible.
 
   utils/lang/check_phones_compatible.sh \
-    data/lang_test_tgpr/phones.txt $lang/phones.txt
+    data/lang_nosp_test_tgpr/phones.txt $lang/phones.txt
   utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_test_tgpr \
+    --self-loop-scale 1.0 data/lang_nosp_test_tgpr \
     $dir $treedir/graph_tgpr || exit 1;
 
   utils/lang/check_phones_compatible.sh \
-    data/lang_test_bd_tgpr/phones.txt $lang/phones.txt
+    data/lang_nosp_test_bd_tgpr/phones.txt $lang/phones.txt
   utils/mkgraph.sh \
-    --self-loop-scale 1.0 data/lang_test_bd_tgpr \
+    --self-loop-scale 1.0 data/lang_nosp_test_bd_tgpr \
     $dir $treedir/graph_bd_tgpr || exit 1;
 fi
 
@@ -251,10 +258,10 @@ if [ $stage -le 15 ]; then
       done
       steps/lmrescore.sh \
         --self-loop-scale 1.0 \
-        --cmd "$decode_cmd" data/lang_test_{tgpr,tg} \
+        --cmd "$decode_cmd" data/lang_nosp_test_{tgpr,tg} \
         data/${data}_hires ${dir}/decode_{tgpr,tg}_${data_affix} || exit 1
       steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-        data/lang_test_bd_{tgpr,fgconst} \
+        data/lang_nosp_test_bd_{tgpr,fgconst} \
        data/${data}_hires ${dir}/decode_${lmtype}_${data_affix}{,_fg} || exit 1
     ) || touch $dir/.error &
   done

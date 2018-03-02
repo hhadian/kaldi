@@ -61,6 +61,7 @@ frame_subsampling_factor=3
 normalize_egs=false
 n_tie=0
 use_final_stddev=true
+max_dur_opts=
 
 proportional_shrink=0.0
 chunk_left_context=0
@@ -199,6 +200,7 @@ if [ $stage -le 13 ]; then
     --trainer.n-tie $n_tie \
     --trainer.tie-info "--num-phone-sets=$num_phone_sets --num-pdfs-per-phone=$num_pdfs_per_phone" \
     --trainer.no-viterbi-percent $no_viterbi_percent \
+    --trainer.max-dur-opts "$max_dur_opts" \
     --trainer.equal-align-iters $equal_align_iters \
     --trainer.num-chunk-per-minibatch $minibatch_size \
     --trainer.frames-per-iter $frames_per_iter \

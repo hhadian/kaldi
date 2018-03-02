@@ -467,8 +467,12 @@ def train(args, run_opts):
         current_num_jobs = int(0.5 + args.num_jobs_initial
                                + (args.num_jobs_final - args.num_jobs_initial)
                                * float(iter) / num_iters)
-        if iter < 80 and args.max_dur_opts != "":
+        if iter < 50 and args.max_dur_opts != "":
             current_num_jobs = 1
+        elif args.max_dur_opts != "":
+            current_num_jobs = int(0.5 + args.num_jobs_initial
+                                   + (args.num_jobs_final - args.num_jobs_initial)
+                                   * float(iter - 50) / num_iters)
 
         if args.stage <= iter:
             model_file = "{dir}/{iter}.mdl".format(dir=args.dir, iter=iter)
