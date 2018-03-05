@@ -474,6 +474,7 @@ class AffineComponent: public UpdatableComponent {
   CuMatrix<BaseFloat> linear_params_;
   CuVector<BaseFloat> bias_params_;
   BaseFloat orthonormal_constraint_;
+  bool is_gradient_;
 };
 
 class RepeatedAffineComponent;

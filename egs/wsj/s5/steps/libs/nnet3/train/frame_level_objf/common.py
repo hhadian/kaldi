@@ -33,7 +33,7 @@ def train_new_models(dir, iter, srand, num_jobs,
                      image_augmentation_opts,
                      run_opts, frames_per_eg=-1,
                      min_deriv_time=None, max_deriv_time_relative=None,
-                     use_multitask_egs=False,
+                     use_multitask_egs=False, train_opts="",
                      backstitch_training_scale=0.0, backstitch_training_interval=1,
                      regularize_factors=None):
     """ Called from train_one_iteration(), this model does one iteration of

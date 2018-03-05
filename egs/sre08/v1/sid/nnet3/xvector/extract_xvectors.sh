@@ -62,7 +62,8 @@ if [ -f $srcdir/$extract_config ] ; then
 fi
 
 # generate subset of data with utt lenght larger than $num_frames to be computable by model.
-tmp=$srcdir/tmp
+name=`basename $data`
+tmp=$srcdir/${name}_tmp
 mkdir -p $tmp
 if [ ! -f $data/utt2num_frames ]; then
   feat-to-len scp:$data/feats.scp ark,t:$data/utt2num_frames
