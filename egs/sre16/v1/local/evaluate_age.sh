@@ -96,14 +96,17 @@ if [ -f $xvector_data/xvector.scp ]; then
   for x in $xvector_data/spk_xvector.scp $data/$utt2label_file; do
     [ ! -f $x ] && echo "$0: file $x does not exist" && exit 1;
   done
-
-  posterior=scp:$xvector_data/xvector.scp
+  if $per_frame_output; then
+    posterior="$test_xvec"
+  else
+    posterior="scp:$xvector_data/xvector.scp"
+  fi
   if [ -f $train_post/xvector.scp ]; then
     echo "$0: we use reballanced posterior by removing training prior."
-    posterior=ark:$xvector_data/norm_post
+    posterior="ark:$xvector_data/norm_post"
   fi
 
-  copy-vector $posterior ark,t:- | \
+  copy-vector "$posterior" ark,t:- | \
     awk '{max=$3;m_ind=0; for (i=3;i<NF;i++) if($i>max) {max=$i;m_ind=i-3 };print $1,m_ind}' > $xvector_data/utt2max
 
 elif [ -f $xvector_data/posteriors ]; then
