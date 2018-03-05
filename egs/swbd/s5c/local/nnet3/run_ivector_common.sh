@@ -121,5 +121,4 @@ if [ $stage -le 8 ]; then
       data/${data_set}_hires exp/nnet3/extractor exp/nnet3/ivectors_$data_set || exit 1;
   done
 fi
-
 exit 0;

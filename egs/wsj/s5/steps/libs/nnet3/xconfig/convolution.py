@@ -113,9 +113,9 @@ from libs.nnet3.xconfig.basic_layers import XconfigLayerBase
 
 class XconfigConvLayer(XconfigLayerBase):
     def __init__(self, first_token, key_to_value, prev_names = None):
-        for operation in first_token.split('-')[:-1]:
-            assert operation in ['conv', 'renorm', 'batchnorm', 'relu',
-                                 'noconv', 'dropout', 'so']
+        operations = first_token.split('-')[:-1]
+        for operation in operations:
+            assert operation in ['oldtimeconv', 'timeconv', 'shift', 'conv', 'renorm', 'batchnorm', 'relu', 'dropout', 'log', 'permute', 'maxpool', 'nin','so']
         XconfigLayerBase.__init__(self, first_token, key_to_value, prev_names)
 
     def set_default_configs(self):
@@ -136,19 +136,42 @@ class XconfigConvLayer(XconfigLayerBase):
                        'max-change': 0.75, 'learning-rate-factor':'',
                        'use-natural-gradient':'',
                        'rank-in':'', 'rank-out':'', 'num-minibatches-history':'',
-                       'alpha-in':'', 'alpha-out':'', 'l2-regularize':'',
-                       'dropout-proportion': 0.5}
+                       'alpha-in':'', 'alpha-out':'',
+                       'dropout-proportion': 0.5,
+                       'l2-regularize':'',
+                       # options for TimeConvolutionComponent
+                       'sub-frames-per-frame': 0,
+                       'sub-frames-left-context': 0,
+                       'sub-frames-right-context': 0,
+                       'zero-pad': '',
+                        # options for ShiftComponent
+                        'max-shift': 0.0,
+                        'output-dim': -1
+                        # option for PermuteComponent
+                        }
 
     def set_derived_configs(self):
         # sets 'num-filters-in'.
-        input_dim = self.descriptors['input']['dim']
+        if self.config['output-dim'] != -1: # ShiftInputComponent
+            input_dim = self.config['output-dim']
+        else:
+            input_dim = self.descriptors['input']['dim']
         height_in = self.config['height-in']
-        if height_in <= 0:
-            raise RuntimeError("height-in must be specified");
-        if input_dim % height_in != 0:
-            raise RuntimeError("Input dimension {0} is not a multiple of height-in={1}".format(
-                input_dim, height_in))
-        self.config['num-filters-in'] = input_dim / height_in
+        sub_frames_per_frame = self.config['sub-frames-per-frame']
+        if sub_frames_per_frame <= 0: # TimeHeightConvolutionComponent
+            if height_in <= 0:
+                raise RuntimeError("height-in or sub_frames_per_frame must be specified");
+            if input_dim % height_in != 0:
+                raise RuntimeError("Input dimension {0} is not a multiple of height-in={1}.".format(
+                    input_dim, height_in))
+        else: # TimeConvolutionComponent
+            if input_dim % sub_frames_per_frame != 0:
+                raise RuntimeError("Input dimension {0} is not a multiple of sub-frames-per-frame={1}.".format(
+                    input_dim, sub_frames_per_frame))
+        if height_in > 0:
+            self.config['num-filters-in'] = input_dim / height_in
+        else:
+            self.config['num-filters-in'] = sub_frames_per_frame;
 
 
     # Check whether 'str' is a sorted, unique, nonempty list of integers, like -1,0,1.,
@@ -173,10 +196,23 @@ class XconfigConvLayer(XconfigLayerBase):
         height_subsample_out = self.config['height-subsample-out']
         height_in = self.config['height-in']
         height_out = self.config['height-out']
+        sub_frames_per_frame = self.config['sub-frames-per-frame']
         if height_subsample_out <= 0:
             raise RuntimeError("height-subsample-out has invalid value {0}.".format(
                 height_subsample_out))
         # we already checked height-in in set_derived_configs.
+        if sub_frames_per_frame <= 0: # The convolution type is TimeHeightConvolution
+            if height_out <= 0:
+                raise RuntimeError("height-out has invalid value {0}.".format(
+                    height_out))
+            if height_out * height_subsample_out > height_in:
+                raise RuntimeError("The combination height-in={0}, height-out={1} and "
+                                   "height-subsample-out={2} does not look right "
+                                   "(height-out too large).".format(
+                                       height_in, height_out, height_subsample_out))
+            height_offsets = self.config['height-offsets']
+            time_offsets = self.config['time-offsets']
+            required_time_offsets = self.config['required-time-offsets']
         if height_out <= 0:
             raise RuntimeError("height-out has invalid value {0}.".format(
                 height_out))
@@ -200,12 +236,13 @@ class XconfigConvLayer(XconfigLayerBase):
                 raise RuntimeError("required-time-offsets={0} is not valid".format(
                     required_time_offsets))
 
-        if height_out * height_subsample_out < \
-           height_in - len(height_offsets.split(',')):
-            raise RuntimeError("The combination height-in={0}, height-out={1} and "
-                               "height-subsample-out={2} and height-offsets={3} "
-                               "does not look right (height-out too small).")
-
+            if height_out * height_subsample_out < \
+               height_in - len(height_offsets.split(',')):
+                raise RuntimeError("The combination height-in={0}, height-out={1} and "
+                                   "height-subsample-out={2} and height-offsets={3} "
+                                   "does not look right (height-out too small).")
+        else: # check for TimeConvolution component
+            print("ok")
         if self.config['target-rms'] <= 0.0:
             raise RuntimeError("Config value target-rms={0} is not valid".format(
                 self.config['target_rms']))
@@ -221,13 +258,22 @@ class XconfigConvLayer(XconfigLayerBase):
             operations = operations[:-1]
         assert len(operations) >= 1
         last_operation = operations[-1]
-        assert last_operation in ['relu', 'conv', 'renorm', 'batchnorm', 'dropout', 'so']
+        assert last_operation in ['relu', 'conv', 'timeconv',
+                                  'renorm', 'batchnorm', 'dropout', 'maxpool', 'so']
         # we'll return something like 'layer1.batchnorm'.
         return '{0}.{1}'.format(self.name, last_operation)
 
     def output_dim(self, auxiliary_output = None):
+        operations = self.layer_type.split('-')[:-1]
         assert auxiliary_output is None
-        return self.config['num-filters-out'] * self.config['height-out']
+        if self.config['height-out'] > 0:
+            return self.config['num-filters-out'] * self.config['height-out']
+        else:
+            assert self.config['sub-frames-per-frame'] != 0
+            if 'maxpool' in operations:
+                return self.config['num-filters-out']
+            else:
+                return self.config['num-filters-out'] * self.config['sub-frames-per-frame']
 
     def get_full_config(self):
         ans = []
@@ -260,8 +306,93 @@ class XconfigConvLayer(XconfigLayerBase):
         # or:
         # operations = [ 'relu', 'conv', 'renorm' ]
 
+        input_dim = self.descriptors['input']['dim']
         for operation in operations:
-            if operation == 'conv':
+            if operation == 'shift':
+                a = []
+                for opt_name in [ 'max-shift', 'output-dim']:
+                    value = self.config[opt_name]
+                    if value != '':
+                        a.append('{0}={1}'.format(opt_name, value))
+                a.append('input-dim={0}'.format(input_dim))
+                conv_opts = ' '.join(a)
+                configs.append('component name={0}.shift type=ShiftInputComponent '
+                               '{1}'.format(name, conv_opts))
+                configs.append('component-node name={0}.shift component={0}.shift '
+                               'input={1} preprocess={2} max-shift={3}'.format(name, cur_descriptor, preprocess, max_shift))
+                input_dim = self.config['output-dim'] # input-dim changed after shift.
+            elif operation == 'maxpool':
+                assert('timeconv' in operations or 'oldtimeconv' in operations)
+                a = []
+                a.append('input-x-dim={0}'.format(cur_height))
+                a.append('input-z-dim={0}'.format(self.config['num-filters-out']))
+                a.append('pool-x-size={0}'.format(cur_height))
+                a.append('input-y-dim=1 pool-y-size=1 pool-z-size=1 pool-x-step={0} '
+                         'pool-y-step=1 pool-z-step=1'.format(cur_height))
+                pool_opts = ' '.join(a)
+                configs.append('component name={0}.maxpool type=MaxpoolingComponent '
+                         '{1}'.format(name, pool_opts))
+                configs.append('component-node name={0}.maxpool component={0}.maxpool '
+                               'input={1}'.format(name, cur_descriptor))
+                cur_dim = cur_num_filters
+            elif operation == 'nin':
+                # add nin nonlinearity
+                a = []
+                nin_opts = ' '.join(a)
+            elif operation == 'abs':
+                assert('relu' in operations or 'abs' in operations)
+                configs.append('component name={0}.abs type=PnormComponent '
+                               'input-dim={1} output-dim={1}'.format(name, dim))
+                configs.append('component-node name={0}.abs component={0}.abs '
+                                'input={1}'.format(name, cur_descriptor))
+            elif operation == 'oldtimeconv':
+                a = []
+                for opt_name in [
+                        'param-stddev', 'bias-stddev', 'use-natural-gradient',
+                        'max-change', 'rank-in', 'rank-out', 'num-minibatches-history',
+                        'alpha-in', 'alpha-out',
+                        'learning-rate-factor']:
+                    value = self.config[opt_name]
+                    if  value != '':
+                        a.append('{0}={1}'.format(opt_name, value))
+                samples_per_sub_frame = input_dim / self.config['sub-frames-per-frame']
+                filter_dim = (self.config['sub-frames-left-context'] +
+                    self.config['sub-frames-right-context'] + 1) * samples_per_sub_frame
+                a.append('input-x-dim={0} filt-x-dim={1}'.format(input_dim, filter_dim))
+                a.append('input-y-dim=1 input-z-dim=1 filt-y-dim=1 filt-y-step=1')
+                a.append('filt-x-step={0} num-filters={1}'.format(samples_per_sub_frame, self.config['num-filters-out']))
+                a.append('input-vectorization-order=zyx')
+
+                conv_opts = ' '.join(a)
+                configs.append('component name={0}.oldtimeconv type=ConvolutionComponent '
+                               '{1}'.format(name, conv_opts))
+                configs.append('component-node name={0}.oldtimeconv component={0}.oldtimeconv '
+                               'input={1}'.format(name, cur_descriptor))
+                cur_height = (input_dim - filter_dim) / samples_per_sub_frame + 1
+                cur_num_filters = self.config['num-filters-out']
+                cur_dim = cur_num_filters * cur_height
+            elif operation == 'timeconv':
+                a = []
+                for opt_name in [
+                        'param-stddev', 'bias-stddev', 'use-natural-gradient',
+                        'max-change', 'rank-in', 'rank-out', 'num-minibatches-history',
+                        'sub-frames-per-frame', 'num-filters-out',
+                        'sub-frames-left-context', 'sub-frames-right-context', 'zero-pad',
+                        'alpha-in', 'alpha-out',
+                        'learning-rate-factor']:
+                    value = self.config[opt_name]
+                    if value != '':
+                        a.append('{0}={1}'.format(opt_name, value))
+                a.append('input-dim={0}'.format(input_dim))
+                conv_opts = ' '.join(a)
+                configs.append('component name={0}.timeconv type=TimeConvolutionComponent '
+                               '{1}'.format(name, conv_opts))
+                configs.append('component-node name={0}.timeconv component={0}.timeconv '
+                               'input={1}'.format(name, cur_descriptor))
+                cur_num_filters = self.config['num-filters-out']
+                cur_height = self.config['sub-frames-per-frame']
+                cur_dim = cur_num_filters * cur_height
+            elif operation == 'conv':
                 a = []
                 for opt_name in [
                         'param-stddev', 'bias-stddev', 'use-natural-gradient',
@@ -281,17 +412,18 @@ class XconfigConvLayer(XconfigLayerBase):
                                'input={1}'.format(name, cur_descriptor))
                 cur_num_filters = self.config['num-filters-out']
                 cur_height = self.config['height-out']
+                cur_dim = cur_num_filters * cur_height
             elif operation == 'batchnorm':
                 configs.append('component name={0}.batchnorm  type=BatchNormComponent dim={1} '
                                'block-dim={2} target-rms={3}'.format(
-                                   name, cur_num_filters * cur_height, cur_num_filters,
+                                   name, cur_dim, cur_num_filters,
                                    self.config['target-rms']))
                 configs.append('component-node name={0}.batchnorm component={0}.batchnorm '
                                'input={1}'.format(name, cur_descriptor))
             elif operation == 'renorm':
                 configs.append('component name={0}.renorm type=NormalizeComponent '
                            'dim={1} target-rms={2}'.format(
-                               name, cur_num_filters * cur_height,
+                               name, cur_dim,
                                self.config['target-rms']))
                 configs.append('component-node name={0}.renorm component={0}.renorm '
                                'input={1}'.format(name, cur_descriptor))
@@ -307,10 +439,24 @@ class XconfigConvLayer(XconfigLayerBase):
             elif operation == 'dropout':
                 configs.append('component name={0}.dropout type=DropoutComponent '
                            'dim={1} dropout-proportion={2}'.format(
-                               name, cur_num_filters * cur_height,
+                               name, cur_dim,
                                self.config['dropout-proportion']))
                 configs.append('component-node name={0}.dropout component={0}.dropout '
                                'input={1}'.format(name, cur_descriptor))
+            elif operation == 'log':
+                configs.append('component name={0}.log type=LogComponent '
+                                'dim={1}'.format(name, cur_dim))
+                configs.append('component-node name={0}.log component={0}.log '
+                                'input={1}'.format(name, cur_descriptor))
+            elif operation == 'permute':
+                column_map = []
+                for x in range(0, cur_num_filters):
+                    for y in range(0, cur_height):
+                        column_map.append(y * cur_num_filters + x)
+                column_map_str = ",".join([str(x) for x in column_map])
+                configs.append('component name={0}.permute type=PermuteComponent '
+                               'column-map={1}'.format(name, column_map_str))
+                configs.append('component-node name={0}.permute component={0}.permute '.format(name))
             elif operation == 'so':
                 configs.append('component name={0}.so type=ScaleAndOffsetComponent '
                            'dim={1} block-dim={2}'.format(

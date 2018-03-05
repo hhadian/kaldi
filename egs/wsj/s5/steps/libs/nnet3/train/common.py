@@ -102,12 +102,13 @@ def get_multitask_egs_opts(egs_dir, egs_prefix="",
 
 
 def get_successful_models(num_models, log_file_pattern,
-                          difference_threshold=1.0):
+                          difference_threshold=1.0,
+                          min_acceptable_obj_for_average=-1000.0):
     assert num_models > 0
-
+    do_average = True
     parse_regex = re.compile(
         "LOG .* Overall average objective function for "
-        "'output' is ([0-9e.\-+= ]+) over ([0-9e.\-+]+) frames")
+        "'output' is ([0-9e.\-+= ]+) over ([0-9e.\-+]+) frames.")
     objf = []
     for i in range(num_models):
         model_num = i + 1
@@ -124,6 +125,9 @@ def get_successful_models(num_models, log_file_pattern,
         objf.append(this_objf)
     max_index = objf.index(max(objf))
     accepted_models = []
+    if objf[max_index] <  min_acceptable_obj_for_average:
+        do_average = False
+
     for i in range(num_models):
         if (objf[max_index] - objf[i]) <= difference_threshold:
             accepted_models.append(i + 1)
@@ -134,7 +138,7 @@ def get_successful_models(num_models, log_file_pattern,
                         len(accepted_models),
                         num_models, log_file_pattern))
 
-    return [accepted_models, max_index + 1]
+    return [accepted_models, max_index + 1, do_average]
 
 
 def get_average_nnet_model(dir, iter, nnets_list, run_opts,
@@ -537,7 +541,7 @@ def smooth_presoftmax_prior_scale_vector(pdf_counts,
 
 
 def prepare_initial_network(dir, run_opts, srand=-3):
-    if os.path.exists(dir+"/configs/init.config"):
+    if os.path.exists(dir+"/init.raw"):
         common_lib.execute_command(
             """{command} {dir}/log/add_first_layer.log \
                     nnet3-init --srand={srand} {dir}/init.raw \

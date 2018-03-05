@@ -156,7 +156,7 @@ void ComputeSimpleNnetContext(const Nnet &nnet,
 
   // This will crash if the total context (left + right) is greater
   // than window_size.
-  int32 window_size = 200;
+  int32 window_size = 2000;
 
   // by going "<= modulus" instead of "< modulus" we do one more computation
   // than we really need; it becomes a sanity check.
@@ -540,6 +540,16 @@ void SetBatchnormTestMode(bool test_mode,  Nnet *nnet) {
 }
 
 void SetDropoutTestMode(bool test_mode,  Nnet *nnet) {
+  for (int32 c = 0; c < nnet->NumComponents(); c++) {
+    Component *comp = nnet->GetComponent(c);
+    RandomComponent *rc = dynamic_cast<RandomComponent*>(comp);
+    DropoutComponent *dc = dynamic_cast<DropoutComponent*>(comp);
+    if (rc != NULL && dc != NULL)
+      rc->SetTestMode(test_mode);
+  }
+}
+
+void SetShiftInputTestMode(bool test_mode,  Nnet *nnet) {
   for (int32 c = 0; c < nnet->NumComponents(); c++) {
     Component *comp = nnet->GetComponent(c);
     RandomComponent *rc = dynamic_cast<RandomComponent*>(comp);
@@ -1845,6 +1855,22 @@ void CollapseModel(const CollapseModelConfig &config,
                     << info_after_collapse;
     }
   }
+}
+
+bool PositiveUpdatableWeights(Nnet *nnet) {
+  for (int32 c = 0; c < nnet->NumComponents(); c++) {
+    Component *comp = nnet->GetComponent(c);
+    if (comp->Properties() & kUpdatableComponent) {
+      UpdatableComponent *src_comp =
+        dynamic_cast<UpdatableComponent*>(comp);
+      BaseFloat min_param_value = src_comp->MinParamValue(),
+        max_param_value = src_comp->MaxParamValue();
+      KALDI_ASSERT(min_param_value < max_param_value);
+      // apply min and max weight constraints to linear and bias parameters.
+      src_comp->ApplyMinMaxToWeights();
+    }
+  }
+  return true;
 }
 
 bool UpdateNnetWithMaxChange(const Nnet &delta_nnet,

@@ -47,14 +47,14 @@ namespace nnet3 {
 // This "nnet3" version of the p-norm component only supports the 2-norm.
 class PnormComponent: public Component {
  public:
-  void Init(int32 input_dim, int32 output_dim);
-  explicit PnormComponent(int32 input_dim, int32 output_dim) {
-    Init(input_dim, output_dim);
+  void Init(int32 input_dim, int32 output_dim, BaseFloat p = 2.0);
+  explicit PnormComponent(int32 input_dim, int32 output_dim, BaseFloat p = 2) {
+    Init(input_dim, output_dim, p);
   }
   virtual int32 Properties() const {
     return kSimpleComponent|kBackpropNeedsInput|kBackpropNeedsOutput;
   }
-  PnormComponent(): input_dim_(0), output_dim_(0) { }
+  PnormComponent(): input_dim_(0), output_dim_(0), p_(2.0) { }
   virtual std::string Type() const { return "PnormComponent"; }
   virtual void InitFromConfig(ConfigLine *cfl);
   virtual int32 InputDim() const { return input_dim_; }
@@ -71,7 +71,7 @@ class PnormComponent: public Component {
                         Component *to_update,
                         CuMatrixBase<BaseFloat> *in_deriv) const;
   virtual Component* Copy() const { return new PnormComponent(input_dim_,
-                                                              output_dim_); }
+                                                              output_dim_, p_); }
 
   virtual void Read(std::istream &is, bool binary); // This Read function
   // requires that the Component has the correct type.
@@ -82,6 +82,7 @@ class PnormComponent: public Component {
  protected:
   int32 input_dim_;
   int32 output_dim_;
+  BaseFloat p_;
 };
 
 // This component randomly zeros dropout_proportion of the input
@@ -89,20 +90,25 @@ class PnormComponent: public Component {
 // Typically this component used during training but not in test time.
 // The idea is described under the name Dropout, in the paper
 // "Dropout: A Simple Way to Prevent Neural Networks from Overfitting".
+// If block_dropout_size is nonzero, then the dropout is applied per block
+// of size block_dropout_size and the blocks are randomely zero or one.
 class DropoutComponent : public RandomComponent {
  public:
   void Init(int32 dim, BaseFloat dropout_proportion = 0.0,
-            bool dropout_per_frame = false);
+            bool dropout_per_frame = false,
+            int32 block_dropout_size = 1);
 
   DropoutComponent(int32 dim, BaseFloat dropout = 0.0,
-                   bool dropout_per_frame = false) {
-    Init(dim, dropout, dropout_per_frame);
+                   bool dropout_per_frame = false,
+                   int32 block_dropout_size = 1) {
+    Init(dim, dropout, dropout_per_frame, block_dropout_size);
   }
 
   DropoutComponent(): dim_(0), dropout_proportion_(0.0),
-                      dropout_per_frame_(false) { }
+                      dropout_per_frame_(false),
+                      block_dropout_size_(1) { }
 
-  DropoutComponent(const DropoutComponent &other);
+  explicit DropoutComponent(const DropoutComponent &other);
 
   virtual int32 Properties() const {
     return kBackpropInPlace|kSimpleComponent|kBackpropNeedsInput|
@@ -132,7 +138,6 @@ class DropoutComponent : public RandomComponent {
                         void *memo,
                         Component *to_update,
                         CuMatrixBase<BaseFloat> *in_deriv) const;
-
   virtual Component* Copy() const;
 
   virtual std::string Info() const;
@@ -148,6 +153,7 @@ class DropoutComponent : public RandomComponent {
   /// e.g. if 0.1, we set 10% to zero value.
   BaseFloat dropout_proportion_;
   bool dropout_per_frame_;
+  int32 block_dropout_size_;
 };
 
 class ElementwiseProductComponent: public Component {
@@ -380,6 +386,8 @@ class FixedAffineComponent;
 class FixedScaleComponent;
 class PerElementScaleComponent;
 class PerElementOffsetComponent;
+class PowerComponent;
+class GmmComponent;
 
 // Affine means a linear function plus an offset.
 // Note: although this class can be instantiated, it also
@@ -396,11 +404,7 @@ class AffineComponent: public UpdatableComponent {
 
   AffineComponent(): orthonormal_constraint_(0.0) { } // use Init to really initialize.
   virtual std::string Type() const { return "AffineComponent"; }
-  virtual int32 Properties() const {
-    return kSimpleComponent|kUpdatableComponent|
-        kBackpropNeedsInput|kBackpropAdds;
-  }
-
+  virtual int32 Properties() const;
 
   virtual void* Propagate(const ComponentPrecomputedIndexes *indexes,
                          const CuMatrixBase<BaseFloat> &in,
@@ -424,6 +428,7 @@ class AffineComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights();
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -441,12 +446,13 @@ class AffineComponent: public UpdatableComponent {
   AffineComponent(const CuMatrixBase<BaseFloat> &linear_params,
                   const CuVectorBase<BaseFloat> &bias_params,
                   BaseFloat learning_rate);
+  void Init(int32 input_dim, int32 output_dim,
+            BaseFloat param_stddev, BaseFloat bias_stddev);
+
   // This function resizes the dimensions of the component, setting the
   // parameters to zero, while leaving any other configuration values the same.
   virtual void Resize(int32 input_dim, int32 output_dim);
 
-  void Init(int32 input_dim, int32 output_dim,
-            BaseFloat param_stddev, BaseFloat bias_stddev);
  protected:
   void Init(std::string matrix_filename);
 
@@ -464,7 +470,6 @@ class AffineComponent: public UpdatableComponent {
   virtual void UpdateSimple(
       const CuMatrixBase<BaseFloat> &in_value,
       const CuMatrixBase<BaseFloat> &out_deriv);
-
   const AffineComponent &operator = (const AffineComponent &other); // Disallow.
   CuMatrix<BaseFloat> linear_params_;
   CuVector<BaseFloat> bias_params_;
@@ -517,6 +522,7 @@ class BlockAffineComponent : public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -581,6 +587,7 @@ class RepeatedAffineComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -914,6 +921,7 @@ class LinearComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights();
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -1449,6 +1457,7 @@ class PerElementScaleComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -1545,6 +1554,7 @@ class PerElementOffsetComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -1615,6 +1625,7 @@ class ConstantFunctionComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -1767,6 +1778,7 @@ class ScaleAndOffsetComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const { return 2 * scales_.Dim(); }
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -1939,6 +1951,16 @@ class ConvolutionComponent: public UpdatableComponent {
               const CuMatrixBase<BaseFloat> &out_deriv,
               const std::vector<CuSubMatrix<BaseFloat> *>& out_deriv_batch);
 
+  void Update(const std::string &debug_info,
+              const CuMatrixBase<BaseFloat> &in_value,
+              const CuMatrixBase<BaseFloat> &out_deriv,
+              const std::vector<CuSubMatrix<BaseFloat> *>& out_deriv_batch,
+              const CuMatrixBase<BaseFloat> &filter_params);
+
+  void ComputeParamsAbsFft(const CuMatrixBase<BaseFloat> &filter_params,
+                           CuMatrix<BaseFloat> *abs_fft_params,
+                           CuMatrix<BaseFloat> *normalized_cos_trans,
+                           CuMatrix<BaseFloat> *normalized_sin_tran) const;
 
   virtual void Read(std::istream &is, bool binary);
   virtual void Write(std::ostream &os, bool binary) const;
@@ -1949,6 +1971,7 @@ class ConvolutionComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -1979,7 +2002,6 @@ class ConvolutionComponent: public UpdatableComponent {
   void Update(const std::string &debug_info,
               const CuMatrixBase<BaseFloat> &in_value,
               const CuMatrixBase<BaseFloat> &out_deriv);
-
 
  private:
   int32 input_x_dim_;   // size of the input along x-axis
@@ -2023,6 +2045,22 @@ class ConvolutionComponent: public UpdatableComponent {
   CuVector<BaseFloat> bias_params_;
   // the filter-specific bias vector (i.e., there is a seperate bias added
   // to the output of each filter).
+
+  CuMatrix<BaseFloat> cos_transform_;
+  // The discrete cosine transform matrix used to transform time-domain
+  // filter params to frequency domain and apply l1-regularization
+  // on parameters in frequency domain. It is useful in raw waveform setup
+  // which helps to learn filters which are sparse in frequncy domain.
+
+  CuMatrix<BaseFloat> sin_transform_;
+  // The discrete sine transform matrix used to transform time-domain filter
+  // parameters to frequency domain.
+
+  bool is_gradient_;
+
+  BaseFloat l1_regularizer_;
+  // If nonzero, the l1-regularization is applied on convolution filters in
+  // frequency domain.
 
   void InputToInputPatches(const CuMatrixBase<BaseFloat>& in,
                            CuMatrix<BaseFloat> *patches) const;
@@ -2147,6 +2185,7 @@ class LstmNonlinearityComponent: public UpdatableComponent {
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;
@@ -2222,6 +2261,316 @@ class LstmNonlinearityComponent: public UpdatableComponent {
 };
 
 
+/*
+ * The shiftedComponent shifts the input using random or constant shift.
+ * The output y contains the shifted version of input and it is equal to
+ * x.Range(shift * diff, output_dim_), where 0 <= shift < 1.
+ * The output_dim_ is the target dimension of the output and the input_dim_ is the input
+ * dim of this component and diff = input_dim_ - output_dim_ and input_dim_ >  output_dim_ and the diff should be > = original frame_length.
+ * This component is useful when we train a DNN using raw-waveform
+ * and we can shift the input e.g. shift the input by 20% of original frame-length.
+ * max_shift_ is the max shift used to shift the input(0 <= max_shift_ <= 1, the default is 0.5.)
+ */
+class ShiftInputComponent: public RandomComponent {
+ public:
+  void Init(int32 input_dim, int32 output_dim, BaseFloat max_shift,
+    BaseFloat rand_vol_var = 0.0, BaseFloat dither = 0.0, bool preprocess = false);
+
+  explicit ShiftInputComponent(const ShiftInputComponent &other);
+
+  explicit ShiftInputComponent(int32 input_dim, int32 output_dim,
+                               BaseFloat max_shift,
+                               BaseFloat rand_vol_var = 0.0,
+                               BaseFloat dither = 0.0,
+                               bool preprocess = false) {
+      Init(input_dim, output_dim, max_shift, rand_vol_var, dither, preprocess); }
+  ShiftInputComponent(): input_dim_(0), output_dim_(0), max_shift_(1.0),
+    rand_vol_var_(0.0), shift_per_frame_(false), dither_(0.0),
+    preprocess_(false) { }
+
+  virtual std::string Type() const { return "ShiftInputComponent"; }
+  virtual std::string Info() const;
+  virtual void InitFromConfig(ConfigLine *cfl);
+  void SetShiftAndVolume(BaseFloat shift, BaseFloat vol_var) { max_shift_ = shift;
+    rand_vol_var_ = vol_var; }
+  virtual int32 InputDim() const { return input_dim_; }
+  virtual int32 OutputDim() const { return output_dim_; }
+  virtual int32 Properties() const {
+    return kSimpleComponent|kRandomComponent;
+  }
+  virtual void* Propagate(const ComponentPrecomputedIndexes *indexes,
+                         const CuMatrixBase<BaseFloat> &in,
+                         CuMatrixBase<BaseFloat> *out) const;
+
+  virtual void Backprop(const std::string &debug_info,
+                        const ComponentPrecomputedIndexes *indexes,
+                        const CuMatrixBase<BaseFloat> &in_value,
+                        const CuMatrixBase<BaseFloat> &out_value,
+                        const CuMatrixBase<BaseFloat> &out_deriv,
+                        void *memo,
+                        Component *to_update,
+                        CuMatrixBase<BaseFloat> *in_deriv) const;
+
+  virtual Component* Copy() const;
+
+  virtual void Read(std::istream &is, bool binary); // This Read function
+  // requires that the Component has the correct type.
+
+  /// Write component to stream
+  virtual void Write(std::ostream &os, bool binary) const;
+ protected:
+  void Preprocess(CuMatrixBase<BaseFloat> *preprocessed_in) const;
+  int32 input_dim_;
+  int32 output_dim_;
+  BaseFloat max_shift_; // max shift is the max shift used to shift the input.
+                        // max_shift_ should be between 0 and 1.
+  BaseFloat rand_vol_var_; // The variance used to generate random volume perturbation value.
+  bool shift_per_frame_;  // If true, different random shift is applied per frame of input.
+  BaseFloat dither_; // The random vector with stddev of dither_ is added to input before random shift.
+                     // The main reason is to make zero values on raw waveform nonzero.
+                     // This is done on both test and train.
+  bool preprocess_; // If true, the preemphasis, mean-removal and windowing is applied
+                    // on outputs.
+};
+
+// The PowerComponent is ((x_i+delta_i)^2)^p_i - (delta_i^2)^p_i, and the delta and P are
+// per-dimension trainable parameters.
+// The power and offset are shared acoss blocks with block_dim size.
+class PowerComponent: public UpdatableComponent {
+ public:
+  virtual int32 InputDim() const { return dim_; }
+  virtual int32 OutputDim() const { return dim_; }
+
+  virtual std::string Info() const;
+  virtual void InitFromConfig(ConfigLine *cfl);
+
+  virtual std::string Type() const { return "PowerComponent"; }
+  virtual int32 Properties() const {
+    return kSimpleComponent|kUpdatableComponent|
+      kBackpropNeedsInput;
+  }
+
+  virtual void* Propagate(const ComponentPrecomputedIndexes *indexes,
+                         const CuMatrixBase<BaseFloat> &in,
+                         CuMatrixBase<BaseFloat> *out) const;
+
+  virtual void Backprop(const std::string &debug_info,
+                        const ComponentPrecomputedIndexes *indexes,
+                        const CuMatrixBase<BaseFloat> &in_value,
+                        const CuMatrixBase<BaseFloat> &, // out_value
+                        const CuMatrixBase<BaseFloat> &out_deriv,
+                        void *memo,
+                        Component *to_update,
+                        CuMatrixBase<BaseFloat> *in_deriv) const;
+
+  virtual void Read(std::istream &is, bool binary);
+  virtual void Write(std::ostream &os, bool binary) const;
+
+  virtual Component* Copy() const;
+
+  // Some functions from base-class UpdatableComponent.
+  virtual void Scale(BaseFloat scale);
+  virtual void Add(BaseFloat alpha, const Component &other);
+  virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
+  virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
+  virtual int32 NumParameters() const;
+  virtual void Vectorize(VectorBase<BaseFloat> *params) const;
+  virtual void UnVectorize(const VectorBase<BaseFloat> &params);
+
+  // PowerComponent-specific functions.
+  void Init(std::string power_filename, std::string offset_filename);
+  void Init(int32 dim, BaseFloat power_stddev, BaseFloat power_mean,
+            BaseFloat offset_stddev, BaseFloat offset_mean);
+  explicit PowerComponent();
+  explicit PowerComponent(const PowerComponent &other);
+ protected:
+  int32 dim_;
+  int32 block_dim_;
+  CuVector<BaseFloat> power_;
+  CuVector<BaseFloat> offset_;
+
+  void Update(const std::string &debug_info,
+              const CuMatrixBase<BaseFloat> &in_value,
+              const CuMatrixBase<BaseFloat> &out_deriv,
+              const CuVectorBase<BaseFloat> &power,
+              const CuVectorBase<BaseFloat> &offset);
+
+  const PowerComponent &operator = (const PowerComponent &other);
+};
+
+// The GmmComponent is used in modeling parametric filters as a mixture of
+// gaussians, which is used to model filters in direct-from-raw-waveform setup.
+// The trainable filters have (num_mixtures * 3) * num_filters parameters.
+// 3 parameters per mixture are the mean, variance and weights per mixture and
+// num_filters are the number of filters used.
+//
+// The input values used in gaussian filters is linearly spaced in range
+// [-input-stddev, input-stddev].
+//
+// To impose semi-positivity on variance parameters, the exponential activation
+// function is used i.e beta = exp(beta')
+//
+// To impose positivity and the sum-to-one property of the mixing weights,
+// this layer stores real values, but applies softmax transform
+// wi = exp(wi')/(sum{j=1}^num_mixtures exp(w_j')).
+// We store wi' and beta', but we apply wi and beta in Gmm computation.
+class GmmComponent: public UpdatableComponent {
+ public:
+  virtual int32 InputDim() const { return dim_; }
+  virtual int32 OutputDim() const { return num_filters_; }
+
+  virtual std::string Info() const;
+  virtual void InitFromConfig(ConfigLine *cfl);
+
+  virtual std::string Type() const { return "GmmComponent"; }
+  virtual int32 Properties() const {
+    return kSimpleComponent|kUpdatableComponent|kBackpropNeedsInput|
+      kPropagateAdds|kBackpropAdds;
+  }
+
+  virtual void* Propagate(const ComponentPrecomputedIndexes *indexes,
+                         const CuMatrixBase<BaseFloat> &in,
+                         CuMatrixBase<BaseFloat> *out) const;
+
+  virtual void Backprop(const std::string &debug_info,
+                        const ComponentPrecomputedIndexes *indexes,
+                        const CuMatrixBase<BaseFloat> &in_value,
+                        const CuMatrixBase<BaseFloat> &, // out_value
+                        const CuMatrixBase<BaseFloat> &out_deriv,
+                        void *memo,
+                        Component *to_update,
+                        CuMatrixBase<BaseFloat> *in_deriv) const;
+
+  virtual void Read(std::istream &is, bool binary);
+  virtual void Write(std::ostream &os, bool binary) const;
+
+  virtual Component* Copy() const;
+
+  // Some functions from base-class UpdatableComponent.
+  virtual void Scale(BaseFloat scale);
+  virtual void Add(BaseFloat alpha, const Component &other);
+  virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
+  virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
+  virtual int32 NumParameters() const;
+  virtual void Vectorize(VectorBase<BaseFloat> *params) const;
+  virtual void UnVectorize(const VectorBase<BaseFloat> &params);
+
+  // PowerComponent-specific functions.
+  void Init(int32 dim, int32 num_mixtures, int32 num_filters,
+            BaseFloat mean_stddev, BaseFloat var_stddev,
+            BaseFloat gmm_input_stddev,
+            bool const_var);
+  explicit GmmComponent();
+  explicit GmmComponent(const GmmComponent &other);
+
+ protected:
+  int32 num_filters_;
+  int32 num_mixtures_;
+  int32 dim_;
+  bool const_var_; // If true, variance is fixed and only mean and weight are trained.
+  // filter_params_ contains mean, psuedo_variance, and psuedo_weights per mixture
+  // for all filters.
+  // The softmax of psuedo-weights and exp(psuedo-variance) are applied
+  // to generate gmm filters.
+  // filter_params_.NumCols() is equal to num_filters_ and
+  // filter_params_.NumRows() is equal to (num_mixtures_ * 2 + 1).
+  // filter_params_.RowRange(0, num_mixtures).Col(i) are the means per mixture for
+  // filter i.
+  // filter_params_.Row(num_mixtures, num_mixtures) are psuedo-var for all filters
+  // filter_params_.RowRange(2 * num_mixtures, num_mixtures).Col(i) are
+  // psuedo-weights for filter i.
+  CuMatrix<BaseFloat> filter_params_;
+
+  CuVector<BaseFloat> input_for_gmm_;
+
+  // It computes the input vector for gaussian mixture function computation
+  void ComputeGmmInput(CuVector<BaseFloat> *input_for_gmm,
+                       BaseFloat input_stddev) const;
+
+  // This function computes gmm_filters, where row i is the i_th filter
+  // with dim equal to dim_.
+  void ComputeGmmFilters(CuMatrix<BaseFloat> *gmm_filters) const;
+
+  void Update(const std::string &debug_info,
+              const CuMatrixBase<BaseFloat> &in_value,
+              const CuMatrixBase<BaseFloat> &out_deriv,
+              const CuMatrixBase<BaseFloat> &filter_params,
+              const CuMatrixBase<BaseFloat> &gmm_filters);
+
+  const GmmComponent &operator = (const GmmComponent &other);
+};
+
+// The ExpComponent outputs the exp of input values as y = Exp(x)
+class ExpComponent: public NonlinearComponent {
+ public:
+  explicit ExpComponent(const ExpComponent &other):
+    NonlinearComponent(other) { }
+  ExpComponent() { }
+  virtual std::string Type() const { return "ExpComponent"; }
+  virtual int32 Properties() const {
+    return kSimpleComponent|kBackpropNeedsOutput|kStoresStats;
+  }
+  virtual void* Propagate(const ComponentPrecomputedIndexes *indexes,
+                          const CuMatrixBase<BaseFloat> &in,
+                          CuMatrixBase<BaseFloat> *out) const;
+  virtual void Backprop(const std::string &debug_info,
+                        const ComponentPrecomputedIndexes *indexes,
+                        const CuMatrixBase<BaseFloat> &,
+                        const CuMatrixBase<BaseFloat> &out_value,
+                        const CuMatrixBase<BaseFloat> &,
+                        void *memo,
+                        Component *to_update,
+                        CuMatrixBase<BaseFloat> *in_deriv) const;
+
+  virtual Component* Copy() const { return new ExpComponent(*this); }
+ private:
+  ExpComponent &operator = (const ExpComponent &other); // Disallow.
+};
+
+// The LogComponent outputs the log of input values as y = Log(max(x, epsi))
+class LogComponent: public NonlinearComponent {
+ public:
+  //explicit LogComponent(int32 dim): dim_(dim) { }
+  explicit LogComponent(const LogComponent &other):
+    NonlinearComponent(other), log_floor_(other.log_floor_),
+    additive_offset_(other.additive_offset_) {}
+  LogComponent(): log_floor_(1e-10), additive_offset_(false) { }
+  virtual std::string Type() const { return "LogComponent"; }
+  virtual int32 Properties() const {
+    return kSimpleComponent|kBackpropNeedsInput|kStoresStats;
+  }
+
+  virtual std::string Info() const;
+
+  virtual void InitFromConfig(ConfigLine *cfl);
+
+  virtual void* Propagate(const ComponentPrecomputedIndexes *indexes,
+                          const CuMatrixBase<BaseFloat> &in,
+                          CuMatrixBase<BaseFloat> *out) const;
+  virtual void Backprop(const std::string &debug_info,
+                        const ComponentPrecomputedIndexes *indexes,
+                        const CuMatrixBase<BaseFloat> &in_value,
+                        const CuMatrixBase<BaseFloat> &out_value,
+                        const CuMatrixBase<BaseFloat> &out_deriv,
+                        void *memo,
+                        Component *to_update,
+                        CuMatrixBase<BaseFloat> *in_deriv) const;
+
+  virtual Component* Copy() const { return new LogComponent(*this); }
+
+  virtual void Read(std::istream &is, bool binary);
+
+  virtual void Write(std::ostream &os, bool binary) const;
+
+ private:
+  LogComponent &operator = (const LogComponent &other); // Disallow.
+  BaseFloat log_floor_;
+  bool additive_offset_; // If true, log is computed using abs(x) + log_floor_
+                         // otherwise it is computed as log(max(x,log_floor_))
+};
+
 
 
 /*
@@ -2235,7 +2584,7 @@ class LstmNonlinearityComponent: public UpdatableComponent {
  * pool_y_size_, pool_z_size_).
  * Blocks could overlap if the shift value on any axis is smaller
  * than its corresponding pool size (e.g. pool_x_step_ < pool_x_size_).
- * If the shift values are euqal to their pool size, there is no
+ * If the shift values are equal to their pool size, there is no
  * overlap; while if they all equal 1, the blocks overlap to
  * the greatest possible extent.
  *
@@ -2406,11 +2755,13 @@ class CompositeComponent: public UpdatableComponent {
 
   // Some functions from base-class UpdatableComponent.
   virtual void SetUnderlyingLearningRate(BaseFloat lrate);
+  virtual void SetUnderlyingLearningRateFactor(BaseFloat lrate_factor);
   virtual void SetActualLearningRate(BaseFloat lrate);
   virtual void SetAsGradient();
   virtual void Scale(BaseFloat scale);
   virtual void Add(BaseFloat alpha, const Component &other);
   virtual void PerturbParams(BaseFloat stddev);
+  virtual void ApplyMinMaxToWeights() {}
   virtual BaseFloat DotProduct(const UpdatableComponent &other) const;
   virtual int32 NumParameters() const;
   virtual void Vectorize(VectorBase<BaseFloat> *params) const;

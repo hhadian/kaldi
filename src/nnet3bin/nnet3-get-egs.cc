@@ -36,16 +36,23 @@ static bool ProcessFile(const GeneralMatrix &feats,
                         const Posterior &pdf_post,
                         const std::string &utt_id,
                         bool compress,
+                        bool single_label_per_utt,
                         int32 num_pdfs,
                         int32 length_tolerance,
                         UtteranceSplitter *utt_splitter,
                         NnetExampleWriter *example_writer) {
   int32 num_input_frames = feats.NumRows();
-  if (!utt_splitter->LengthsMatch(utt_id, num_input_frames,
-                                  static_cast<int32>(pdf_post.size()),
-                                  length_tolerance))
-    return false;  // LengthsMatch() will have printed a warning.
-
+  int32 pdf_post_size =
+    (single_label_per_utt ? num_input_frames : static_cast<int32>(pdf_post.size()));
+  if (single_label_per_utt)
+    KALDI_ASSERT(pdf_post.size() == 1); // it should be single pdf posterior per utterance.
+  else
+    // If there are multiple labels per utterance, the length should match
+    // with number of frames in input feature.
+    if (!utt_splitter->LengthsMatch(utt_id, num_input_frames,
+                                    pdf_post_size,
+                                    length_tolerance))
+      return false;  // LengthsMatch() will have printed a warning.
   std::vector<ChunkTimeInfo> chunks;
 
   utt_splitter->GetChunksForUtterance(num_input_frames, &chunks);
@@ -112,8 +119,8 @@ static bool ProcessFile(const GeneralMatrix &feats,
     // helpful.
     for (int32 i = 0; i < num_frames_subsampled; i++) {
       int32 t = i + start_frame_subsampled;
-      if (t < pdf_post.size())
-        labels[i] = pdf_post[t];
+      if (t < pdf_post_size)
+        labels[i] = (single_label_per_utt ? pdf_post[0] : pdf_post[t]);
       for (std::vector<std::pair<int32, BaseFloat> >::iterator
                iter = labels[i].begin(); iter != labels[i].end(); ++iter)
         iter->second *= chunk.output_weights[i];
@@ -146,29 +153,36 @@ int main(int argc, char *argv[]) {
 
     const char *usage =
         "Get frame-by-frame examples of data for nnet3 neural network training.\n"
-        "Essentially this is a format change from features and posteriors\n"
+        "Essentially this is a format change from features \n"
         "into a special frame-by-frame format.  This program handles the\n"
         "common case where you have some input features, possibly some\n"
-        "iVectors, and one set of labels.  If people in future want to\n"
+        "iVectors, and one set of labels e.g. ASR or \n"
+        "single label per utterance in cases like speaker, age \n"
+        "or emotion detection.  If people in future want to\n"
         "do different things they may have to extend this program or create\n"
         "different versions of it for different tasks (the egs format is quite\n"
         "general)\n"
         "\n"
-        "Usage:  nnet3-get-egs [options] <features-rspecifier> "
+        "Usage:  nnet3-get-egs-age [options] <features-rspecifier> "
         "<pdf-post-rspecifier> <egs-out>\n"
         "\n"
         "An example [where $feats expands to the actual features]:\n"
         "nnet3-get-egs --num-pdfs=2658 --left-context=12 --right-context=9 --num-frames=8 \"$feats\"\\\n"
         "\"ark:gunzip -c exp/nnet/ali.1.gz | ali-to-pdf exp/nnet/1.nnet ark:- ark:- | ali-to-post ark:- ark:- |\" \\\n"
         "   ark:- \n"
+        "\n"
+        "Or an example [where $feats expands to the actual features and single label per utt]:\n"
+        "nnet3-get-egs-age --num-pdfs=2658 --left-context=12 --right-context=9 --num-frames=8 \"$feats\"\\\n"
+        "\"ark:ali-to-post ark:utt2label ark:- |\"\\\n"
+        "   ark:- \n"
         "See also: nnet3-chain-get-egs, nnet3-get-egs-simple\n";
 
 
     bool compress = true;
     int32 num_pdfs = -1, length_tolerance = 100,
-        targets_length_tolerance = 2,  
+        targets_length_tolerance = 2,
         online_ivector_period = 1;
-
+    bool single_label_per_utt = false;
     ExampleGenerationConfig eg_config;  // controls num-frames,
                                         // left/right-context, etc.
 
@@ -192,7 +206,7 @@ int main(int argc, char *argv[]) {
                 "--online-ivectors option");
     po.Register("length-tolerance", &length_tolerance, "Tolerance for "
                 "difference in num-frames between feat and ivector matrices");
-    po.Register("targets-length-tolerance", &targets_length_tolerance, 
+    po.Register("targets-length-tolerance", &targets_length_tolerance,
                 "Tolerance for "
                 "difference in num-frames (after subsampling) between "
                 "feature matrix and posterior");
@@ -235,6 +249,11 @@ int main(int argc, char *argv[]) {
         num_err++;
       } else {
         const Posterior &pdf_post = pdf_post_reader.Value(key);
+        if (static_cast<int32>(pdf_post.size()) == 1 &&
+            feats.NumRows() > 1 + length_tolerance)
+          single_label_per_utt = true;
+        else
+          single_label_per_utt = false;
         const Matrix<BaseFloat> *online_ivector_feats = NULL;
         if (!online_ivector_rspecifier.empty()) {
           if (!online_ivector_reader.HasKey(key)) {
@@ -260,7 +279,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (!ProcessFile(feats, online_ivector_feats, online_ivector_period,
-                         pdf_post, key, compress, num_pdfs, 
+                         pdf_post, key, compress, single_label_per_utt, num_pdfs,
                          targets_length_tolerance,
                          &utt_splitter, &example_writer))
           num_err++;

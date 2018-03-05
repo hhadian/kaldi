@@ -57,6 +57,9 @@ done
 cp $data_in/utt2spk $data_out/utt2spk
 cp $data_in/spk2utt $data_out/spk2utt
 cp $data_in/wav.scp $data_out/wav.scp
+if [ -f $data_in/utt2age ]; then
+  cp $data_in/utt2age $data_out/utt2age
+fi
 
 write_num_frames_opt="--write-num-frames=ark,t:$featdir/log/utt2num_frames.JOB"
 
@@ -66,7 +69,7 @@ utils/split_data.sh $data_in $nj || exit 1;
 $cmd JOB=1:$nj $dir/log/create_xvector_feats_${name}.JOB.log \
   apply-cmvn-sliding --norm-vars=false --center=true --cmn-window=$cmn_window \
   scp:${sdata_in}/JOB/feats.scp ark:- \| \
-  select-voiced-frames ark:- scp,s,cs:${sdata_in}/JOB/vad.scp ark:- \| \
+  select-voiced-frames ark:- scp:${sdata_in}/JOB/vad.scp ark:- \| \
   copy-feats --compress=$compress $write_num_frames_opt ark:- \
   ark,scp:$featdir/xvector_feats_${name}.JOB.ark,$featdir/xvector_feats_${name}.JOB.scp || exit 1;
 

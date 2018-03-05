@@ -86,6 +86,7 @@ void TestNnetDecodable(Nnet *nnet) {
 
   SetBatchnormTestMode(true, nnet);
   SetDropoutTestMode(true, nnet);
+  SetShiftInputTestMode(true, nnet);
 
   input.SetRandn();
   Vector<BaseFloat> ivector(ivector_dim);
@@ -170,6 +171,7 @@ void UnitTestNnetCompute() {
       // and dropout components.
       SetBatchnormTestMode(true, &nnet);
       SetDropoutTestMode(true, &nnet);
+      SetShiftInputTestMode(true, &nnet);
     }
 
     NnetComputation computation;

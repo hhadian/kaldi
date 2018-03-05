@@ -30,6 +30,7 @@
 #include "matrix/kaldi-matrix.h"
 #include "matrix/kaldi-vector.h"
 #include "matrix/compressed-matrix.h"
+#include "cudamatrix/cu-array.h"
 
 namespace kaldi {
 

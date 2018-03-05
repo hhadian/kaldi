@@ -196,6 +196,15 @@ void RecomputeStats(const std::vector<NnetExample> &egs, Nnet *nnet);
 /// elements.
 void SetDropoutTestMode(bool test_mode, Nnet *nnet);
 
+/// This function affects components of child-classes of
+/// RandomComponent( currently only DropoutComponent and DropoutMaskComponent and
+/// ShiftInputComponent).
+/// It sets "test mode" on such components (if you call it with test_mode =
+/// true, otherwise it would set normal mode, but this wouldn't be needed often).
+/// "test mode" means no shift on input of component.
+void SetShiftInputTestMode(bool test_mode, Nnet *nnet);
+
+
 /**
   \brief  This function calls 'ResetGenerator()' on all components in 'nnet'
      that inherit from class RandomComponent.  It's used when you need
@@ -441,6 +450,14 @@ void ApplyL2Regularization(const Nnet &nnet,
                            BaseFloat l2_regularize_scale,
                            Nnet *delta_nnet);
 
+/**
+  This function is used as part of the regular training workflow, after
+  UpdateNnetWithMaxChange().
+  For each Updatable component c in the neural net, it makes updatable params
+  less than min_param_value_ to be equal to this value and also params larger
+  than max_param_value_ to max_param_value_.
+ */
+bool PositiveUpdatableWeights(Nnet *nnet);
 
 /**
    This function scales the batchorm stats of any batchnorm components

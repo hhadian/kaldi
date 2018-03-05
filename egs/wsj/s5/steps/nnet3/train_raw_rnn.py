@@ -128,7 +128,11 @@ def get_args():
                         choices=["true", "false"], default=False,
                         help="""If true, then the average output of the
                         network is computed and dumped as post.final.vec""")
-
+    parser.add_argument("--use-scp-for-target",
+                        type=str, action=common_lib.StrToBoolAction,
+                        choices=["true", "false"], default=True,
+                        help="""If true, the target is the scp format,
+                             otherwise, the target is archive format. e.g. text""")
     # General options
     parser.add_argument("--nj", type=int, default=4,
                         help="Number of parallel jobs")
@@ -305,7 +309,8 @@ def train(args, run_opts):
             transform_dir=args.transform_dir,
             stage=args.egs_stage,
             target_type=target_type,
-            num_targets=num_targets)
+            num_targets=num_targets,
+            use_scp_for_target=args.use_scp_for_target)
 
     if args.egs_dir is None:
         egs_dir = default_egs_dir

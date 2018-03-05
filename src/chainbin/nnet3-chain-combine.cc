@@ -104,7 +104,8 @@ int main(int argc, char *argv[]) {
     bool binary_write = true;
     int32 max_objective_evaluations = 30;
     bool batchnorm_test_mode = false,
-        dropout_test_mode = true;
+        dropout_test_mode = true,
+        shift_input_test_mode = true;
     std::string use_gpu = "yes";
     chain::ChainTrainingOptions chain_config;
 
@@ -123,6 +124,8 @@ int main(int argc, char *argv[]) {
     po.Register("dropout-test-mode", &dropout_test_mode,
                 "If true, set test-mode to true on any DropoutComponents and "
                 "DropoutMaskComponents while evaluating objectives.");
+    po.Register("shift-input-test-mode", &shift_input_test_mode,
+                "If true, set test-mode to true on any ShiftInputComponent.");
 
     chain_config.Register(&po);
 
@@ -153,7 +156,8 @@ int main(int argc, char *argv[]) {
     NnetComputeProbOptions compute_prob_opts;
     NnetChainComputeProb prob_computer(compute_prob_opts, chain_config,
         den_fst, moving_average_nnet);
-
+    if (shift_input_test_mode)
+      SetShiftInputTestMode(true, &nnet);
     std::vector<NnetChainExample> egs;
     egs.reserve(10000);  // reserve a lot of space to minimize the chance of
                          // reallocation.

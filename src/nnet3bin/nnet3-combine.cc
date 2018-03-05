@@ -95,7 +95,8 @@ int main(int argc, char *argv[]) {
     bool binary_write = true;
     int32 max_objective_evaluations = 30;
     bool batchnorm_test_mode = false,
-        dropout_test_mode = true;
+        dropout_test_mode = true,
+        shift_input_test_mode = true;
     std::string use_gpu = "yes";
 
     ParseOptions po(usage);
@@ -110,7 +111,9 @@ int main(int argc, char *argv[]) {
                 "while evaluating objectives.");
     po.Register("dropout-test-mode", &dropout_test_mode,
                 "If true, set test-mode to true on any DropoutComponents and "
-                "DropoutMaskComponents while evaluating objectives.");
+                "DropoutMaskComponents while evaluating objectives.");                                                                                                    
+    po.Register("shift-input-test-mode", &shift_input_test_mode,
+                "If true, set the test mode to be true for ShiftInputComponent.");
     po.Register("use-gpu", &use_gpu,
                 "yes|no|optional|wait, only has effect if compiled with CUDA");
 
@@ -132,6 +135,8 @@ int main(int argc, char *argv[]) {
 
     Nnet nnet;
     ReadKaldiObject(nnet_rxfilename, &nnet);
+    if (shift_input_test_mode)
+      SetShiftInputTestMode(true, &nnet);
     Nnet moving_average_nnet(nnet), best_nnet(nnet);
     NnetComputeProbOptions compute_prob_opts;
     NnetComputeProb prob_computer(compute_prob_opts, moving_average_nnet);

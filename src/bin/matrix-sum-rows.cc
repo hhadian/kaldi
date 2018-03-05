@@ -34,8 +34,11 @@ int main(int argc, char *argv[]) {
         "e.g.: matrix-sum-rows ark:- ark:- | vector-sum ark:- sum.vec\n"
         "See also: matrix-sum, vector-sum\n";
 
-
+    bool average = false;
     ParseOptions po(usage);
+
+    po.Register("average", &average, "If true, compute average instead of "
+                "sum.");
 
     po.Read(argc, argv);
 
@@ -59,6 +62,8 @@ int main(int argc, char *argv[]) {
       vec.AddRowSumMat(1.0, mat, 0.0);
       // Do the summation in double, to minimize roundoff.
       Vector<BaseFloat> float_vec(vec);
+      if (average)
+        float_vec.Scale(1.0/float(mat.NumRows()));
       vec_writer.Write(key, float_vec);
       num_done++;
       num_rows_done += mat.NumRows();

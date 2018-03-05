@@ -25,6 +25,8 @@ cmd=run.pl
 target_type=sparse  # dense to have dense targets,
                     # sparse to have posteriors targets
 num_targets=        # required for target-type=sparse with raw nnet
+use_scp_for_target=true # if true, it assumes the target labels are scp files, otherwise
+                        # it assumes the targets are archive e.g. text files.
 frame_subsampling_factor=1
 length_tolerance=2
 frames_per_eg=8   # number of frames of labels per example.  more->less disk space and
@@ -266,14 +268,20 @@ echo $right_context > $dir/info/right_context
 echo $left_context_initial > $dir/info/left_context_initial
 echo $right_context_final > $dir/info/right_context_final
 
+if $use_scp_for_target; then
+  target_affix='scp'
+else
+  target_affix='ark'
+fi
+
 for n in `seq $nj`; do
-  utils/filter_scp.pl $sdata/$n/utt2spk $targets_scp > $dir/targets.$n.scp
+  utils/filter_scp.pl $sdata/$n/utt2spk $targets_scp > $dir/targets.$n.${target_affix}
 done
 
-targets_scp_split=$dir/targets.JOB.scp
+targets_scp_split=$dir/targets.JOB.${target_affix}
 
 if [ $target_type == "dense" ]; then
-  num_targets=$(feat-to-dim "scp:$targets_scp" - 2>/dev/null) || exit 1
+  num_targets=$(feat-to-dim "${target_affix}:$targets_scp" - 2>/dev/null) || exit 1
 fi
 
 if [ -z "$num_targets" ]; then
@@ -290,9 +298,9 @@ case $target_type in
     ;;
   "sparse")
     get_egs_program="nnet3-get-egs --num-pdfs=$num_targets"
-    targets="ark,s,cs:utils/filter_scp.pl --exclude $dir/valid_uttlist $targets_scp_split | ali-to-post scp:- ark:- |"
-    valid_targets="ark,s,cs:utils/filter_scp.pl $dir/valid_uttlist $targets_scp | ali-to-post scp:- ark:- |" 
-    train_subset_targets="ark,s,cs:utils/filter_scp.pl $dir/train_subset_uttlist $targets_scp | ali-to-post scp:- ark:- |"
+    targets="ark,s,cs:utils/filter_scp.pl --exclude $dir/valid_uttlist $targets_scp_split | ali-to-post ${target_affix}:- ark:- |"
+    valid_targets="ark,s,cs:utils/filter_scp.pl $dir/valid_uttlist $targets_scp | ali-to-post ${target_affix}:- ark:- |"
+    train_subset_targets="ark,s,cs:utils/filter_scp.pl $dir/train_subset_uttlist $targets_scp | ali-to-post ${target_affix}:- ark:- |"
     ;;
   default)
     echo "$0: Unknown --target-type $target_type. Choices are dense and sparse"

@@ -40,6 +40,7 @@ int main(int argc, char *argv[]) {
 
 
     bool batchnorm_test_mode = true, dropout_test_mode = true,
+      shift_input_test_mode = true,
         collapse_model = true;
 
     // This program doesn't support using a GPU, because these probabilities are
@@ -55,6 +56,8 @@ int main(int argc, char *argv[]) {
     po.Register("dropout-test-mode", &dropout_test_mode,
                 "If true, set test-mode to true on any DropoutComponents and "
                 "DropoutMaskComponents.");
+    po.Register("shift-input-test-mode", &shift_input_test_mode,
+                "If true, set test-mode to true on any ShiftInputComponent.");
     po.Register("collapse-model", &collapse_model,
                 "If true, collapse model to the extent possible before "
                 "using it (for efficiency).");
@@ -79,6 +82,9 @@ int main(int argc, char *argv[]) {
 
     if (dropout_test_mode)
       SetDropoutTestMode(true, &nnet);
+
+    if (shift_input_test_mode)
+      SetShiftInputTestMode(true, &nnet);
 
     if (collapse_model)
       CollapseModel(CollapseModelConfig(), &nnet);

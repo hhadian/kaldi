@@ -25,7 +25,8 @@ def generate_egs_using_targets(data, targets_scp, egs_dir,
                                target_type='dense', num_targets=-1,
                                samples_per_iter=20000, frames_per_eg_str="20",
                                srand=0, egs_opts=None, cmvn_opts=None,
-                               transform_dir=None):
+                               transform_dir=None,
+                               use_scp_for_target=True):
     """ Wrapper for calling steps/nnet3/get_egs_targets.sh
 
     This method generates egs directly from an scp file of targets, instead of
@@ -64,6 +65,7 @@ def generate_egs_using_targets(data, targets_scp, egs_dir,
                 --srand {srand} \
                 --target-type {target_type} \
                 --num-targets {num_targets} \
+                --use-scp-for-target {use_scp_for_target} \
                 {data} {targets_scp} {egs_dir}
         """.format(command=run_opts.egs_command,
                    cmvn_opts=cmvn_opts if cmvn_opts is not None else '',
@@ -83,4 +85,5 @@ def generate_egs_using_targets(data, targets_scp, egs_dir,
                    data=data,
                    targets_scp=targets_scp, target_type=target_type,
                    egs_dir=egs_dir,
-                   egs_opts=egs_opts if egs_opts is not None else ''))
+                   egs_opts=egs_opts if egs_opts is not None else '',
+                   use_scp_for_target=('true' if use_scp_for_target  else 'false')))

@@ -955,12 +955,69 @@ void GenerateConfigSequenceCnn(
 }
 
 
+void GenerateConfigSequenceCnnTime(
+    const NnetGenerationOptions &opts,
+    std::vector<std::string> *configs) {
+  std::ostringstream ss;
+  // just generate a config with a single component.
+  int32 samples_per_sub_frame = RandInt(1, 10),
+      num_filters_out = RandInt(1, 10),
+      sub_frames_per_frame = RandInt(1, 5),
+      sub_frames_left_context = RandInt(0, 5),
+      sub_frames_right_context = RandInt(0, 5);
+  bool zero_pad = (RandInt(0, 1) == 0);
+  int32 input_dim = samples_per_sub_frame * sub_frames_per_frame;
+  ss << "input-node name=input dim=" << input_dim << std::endl;
+  ss << "component name=layer1-conv type=TimeConvolutionComponent input-dim=" << input_dim
+     << " num-filters-out=" << num_filters_out
+     << " sub-frames-per-frame=" << sub_frames_per_frame
+     << " sub-frames-left-context=" << sub_frames_left_context
+     << " sub-frames-right-context=" << sub_frames_right_context
+     << " zero-pad=" << (zero_pad ? "true" : "false") << std::endl;
+  ss << "component-node name=layer1-conv component=layer1-conv input=input\n";
+  ss << "output-node name=output input=layer1-conv";
+  configs->push_back(ss.str());
+}
+
+void GenerateConfigSequencePoolCnnTime(
+    const NnetGenerationOptions &opts,
+    std::vector<std::string> *configs) {
+  std::ostringstream ss;
+  // just generate a config with a single component.
+  int32 samples_per_sub_frame = RandInt(1, 10),
+      num_filters_out = RandInt(1, 10),
+      sub_frames_per_frame = RandInt(1, 5),
+      sub_frames_left_context = RandInt(0, 5),
+      sub_frames_right_context = RandInt(0, 5);
+  bool zero_pad = (RandInt(0, 1) == 0);
+  int32 input_dim = samples_per_sub_frame * sub_frames_per_frame;
+  ss << "input-node name=input dim=" << input_dim << std::endl;
+  ss << "component name=layer1-conv type=TimeConvolutionComponent input-dim=" << input_dim
+     << " num-filters-out=" << num_filters_out
+     << " sub-frames-per-frame=" << sub_frames_per_frame
+     << " sub-frames-left-context=" << sub_frames_left_context
+     << " sub-frames-right-context=" << sub_frames_right_context
+     << " zero-pad=" << (zero_pad ? "true" : "false") << std::endl;
+  ss << "component-node name=layer1-conv component=layer1-conv input=input\n";
+
+  ss << "component name=layer1-maxpool type=MaxpoolingComponent "
+     << " input-x-dim=" << sub_frames_per_frame
+     << " input-y-dim=1 "
+     << " input-z-dim=" << num_filters_out
+     << " pool-x-size=" << sub_frames_per_frame
+     << " pool-y-size=1"
+     << " pool-z-size=" << num_filters_out
+     << " pool-x-step=" << sub_frames_per_frame
+     << " pool-y-step=1 pool-z-step=1" << std::endl;
+  ss << "component-node name=layer1-maxpool component=layer1-maxpool input=layer1-conv\n";
+  ss << "output-node name=output input=layer1-maxpool";
+  configs->push_back(ss.str());
+}
 
 void GenerateConfigSequenceCnnNew(
     const NnetGenerationOptions &opts,
     std::vector<std::string> *configs) {
   std::ostringstream ss;
-
 
   int32 cur_height = RandInt(5, 15),
       cur_num_filt = RandInt(1, 3),
@@ -1085,7 +1142,6 @@ void GenerateConfigSequenceCnnNew(
   }
 
   ss << "output-node name=output input=" << cur_layer_descriptor << std::endl;
-
 
   configs->push_back(ss.str());
 }
@@ -1218,7 +1274,7 @@ void GenerateConfigSequence(
     const NnetGenerationOptions &opts,
     std::vector<std::string> *configs) {
 start:
-  int32 network_type = RandInt(0, 14);
+  int32 network_type = RandInt(0, 15);
   switch(network_type) {
     case 0:
       GenerateConfigSequenceSimplest(opts, configs);
@@ -1365,7 +1421,7 @@ void ComputeExampleComputationRequestSimple(
 static void GenerateRandomComponentConfig(std::string *component_type,
                                           std::string *config) {
 
-  int32 n = RandInt(0, 34);
+  int32 n = RandInt(0, 0);
   BaseFloat learning_rate = 0.001 * RandInt(1, 100);
 
   std::ostringstream os;
@@ -1374,7 +1430,9 @@ static void GenerateRandomComponentConfig(std::string *component_type,
       *component_type = "PnormComponent";
       int32 output_dim = RandInt(1, 50), group_size = RandInt(1, 15),
           input_dim = output_dim * group_size;
-      os << "input-dim=" << input_dim << " output-dim=" << output_dim;
+      BaseFloat p = RandInt(1,10) / 10.0;
+      os << "input-dim=" << input_dim << " output-dim=" << input_dim
+         << " p=" << p;
       break;
     }
     case 1: {
@@ -1430,8 +1488,10 @@ static void GenerateRandomComponentConfig(std::string *component_type,
     case 9: {
       *component_type = "AffineComponent";
       int32 input_dim = RandInt(1, 50), output_dim = RandInt(1, 50);
+      bool apply_sigmoid = (RandInt(0, 1) == 0);
       os << "input-dim=" << input_dim << " output-dim=" << output_dim
-         << " learning-rate=" << learning_rate;
+         << " learning-rate=" << learning_rate
+         << " apply-sigmoid=" << (apply_sigmoid ? "false" : "true");
       break;
     }
     case 10: {
@@ -1695,6 +1755,37 @@ static void GenerateRandomComponentConfig(std::string *component_type,
       break;
     }
     case 33: {
+      *component_type = "LogComponent";
+      bool additive_offset = (RandInt(0, 1) == 0);
+      os << "dim=" << RandInt(1, 50)
+         << " additive-offset=" << (additive_offset ? "true" : "false");
+      break;
+    }
+    case 34: {
+      *component_type = "PowerComponent";
+      int32 block_dim = RandInt(1, 10),
+        num_blocks = RandInt(20, 30);
+      os << "dim=" << block_dim * num_blocks
+         << " power-mean=" << 0.2 + 0.1 * RandInt(1, 10)
+         << " power-stddev=" << 0.001 * RandInt(1, 10)
+         << " offset-mean=" << 0.01 * RandInt(1, 10)
+         << " offset-stddev=" << 0.001 * RandInt(1, 10)
+         << " block-dim=" << block_dim;
+      break;
+    }
+    case 35: {
+      *component_type = "GmmComponent";
+      int32 num_filters = RandInt(10, 20),
+        num_mixtures = RandInt(5, 10),
+        dim = std::pow(2, RandInt(5, 8));
+      bool const_var = (RandInt(0,1) == 0);
+      os << "dim=" << dim
+         << " num-filters=" << num_filters
+         << " num-mixtures=" << num_mixtures
+         << " const-var=" << (const_var ? "true" : "false");
+     break;
+    }
+    case 36: {
       *component_type = "ScaleAndOffsetComponent";
       int32 block_dim = RandInt(10, 20),
           num_blocks = RandInt(1, 3),
@@ -1704,8 +1795,15 @@ static void GenerateRandomComponentConfig(std::string *component_type,
          << (RandInt(0,1) == 0 ? "true" : "false");
       break;
     }
-    case 34: {
+    case 37: {
       *component_type = "LinearComponent";
+      int32 input_dim = RandInt(1, 50), output_dim = RandInt(1, 50);
+      os << "input-dim=" << input_dim << " output-dim=" << output_dim
+         << " learning-rate=" << learning_rate;
+      break;
+    }
+    case 38: {
+      *component_type = "SigmoidLinearComponent";
       int32 input_dim = RandInt(1, 50), output_dim = RandInt(1, 50);
       os << "input-dim=" << input_dim << " output-dim=" << output_dim
          << " learning-rate=" << learning_rate;

@@ -96,7 +96,9 @@ int main(int argc, char *argv[]) {
     std::string use_gpu = "no";
     int32 chunk_size = -1,
       min_chunk_size = 100;
-
+    bool apply_exp = true,
+      batchnorm_test_mode = true,
+      collapse_model = true;
     opts.Register(&po);
     po.Register("use-gpu", &use_gpu,
       "yes|no|optional|wait, only has effect if compiled with CUDA");
@@ -105,6 +107,13 @@ int main(int argc, char *argv[]) {
       "If not set, extracts an xvector from all available features.");
     po.Register("min-chunk-size", &min_chunk_size,
       "Minimum chunk-size allowed when extracting xvectors.");
+    po.Register("apply-exp", &apply_exp,
+                "If true, the DNN output are exponentiated before averaging.");
+    po.Register("batchnorm-test-mode", &batchnorm_test_mode,
+                "If true, set test-mode to true on any BatchNormComponents.");
+    po.Register("collapse-model", &collapse_model,
+                "If true, collapse model to the extent possible before "
+                "using it (for efficiency).");
 
     po.Read(argc, argv);
 
@@ -123,9 +132,10 @@ int main(int argc, char *argv[]) {
 
     Nnet nnet;
     ReadKaldiObject(nnet_rxfilename, &nnet);
-    SetBatchnormTestMode(true, &nnet);
+    SetBatchnormTestMode(batchnorm_test_mode, &nnet);
     SetDropoutTestMode(true, &nnet);
-    CollapseModel(CollapseModelConfig(), &nnet);
+    if (collapse_model)
+      CollapseModel(CollapseModelConfig(), &nnet);
 
     CachingOptimizingCompiler compiler(nnet, opts.optimize_config);
 
@@ -183,6 +193,8 @@ int main(int argc, char *argv[]) {
         Vector<BaseFloat> xvector;
         tot_weight += offset;
         RunNnetComputation(sub_features, nnet, &compiler, &xvector);
+        if (apply_exp)
+          xvector.ApplyExp();
         xvector_avg.AddVec(offset, xvector);
       }
       xvector_avg.Scale(1.0 / tot_weight);
