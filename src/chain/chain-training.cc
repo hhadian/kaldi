@@ -89,6 +89,12 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
     num_logprob_weighted = numerator.Forward();
     if (nnet_output_deriv) {
       numerator.Backward(nnet_output_deriv);
+      if (opts.num_scale != 1.0) {
+        nnet_output_deriv->ApplyPow(opts.num_scale);
+        for (int32 r = 0; r < nnet_output_deriv->NumRows(); r++)
+          nnet_output_deriv->Row(r).Scale(1.0 / nnet_output_deriv->Row(r).Sum());
+          // nnet_output_deriv->ApplySoftMaxPerRow(*nnet_output_deriv);
+      }
       if (xent_output_deriv)
         xent_output_deriv->CopyFromMat(*nnet_output_deriv);
     } else if (xent_output_deriv) {

@@ -63,6 +63,7 @@ normalize_egs=false
 cmd=queue.pl
 use_final_stddev=false
 max_dur_opts=
+num_scale=1.0
 
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
@@ -202,7 +203,7 @@ if [ $stage -le 13 ]; then
     --egs.dir "$common_egs_dir" \
     --egs.stage $get_egs_stage \
     --egs.opts "--normalize-egs $normalize_egs --add-deltas $add_deltas --num-train-egs-combine 800" \
-    --trainer.options="--offset-first-transitions=$normalize_egs --den-use-initials=$den_use_initials --den-use-finals=$den_use_finals --check-derivs=$dbl_chk" \
+    --trainer.options="--num-scale=$num_scale --offset-first-transitions=$normalize_egs --den-use-initials=$den_use_initials --den-use-finals=$den_use_finals --check-derivs=$dbl_chk" \
     --trainer.dropout-schedule "$drop_schedule" \
     --trainer.no-mmi-percent $no_mmi_percent \
     --trainer.no-viterbi-percent $no_viterbi_percent \
@@ -230,7 +231,7 @@ fi
 
 
 if [ $stage -le 14 ]; then
-  rm -rf $dir/graph_sw1_tg
+#  rm -rf $dir/graph_sw1_tg
   # Note: it might appear that this $lang directory is mismatched, and it is as
   # far as the 'topo' is concerned, but this script doesn't read the 'topo' from
   # the lang directory.

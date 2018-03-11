@@ -66,6 +66,7 @@ struct ChainTrainingOptions {
   bool viterbi;
   bool check_derivs;
   BaseFloat max_dur;
+  BaseFloat num_scale;
 
   std::string trans_probs_filename;
   std::string write_trans_stats_prefix;
@@ -80,7 +81,7 @@ struct ChainTrainingOptions {
                           xent_regularize(0.0), disable_mmi(false),
                           equal_align(true), den_use_initials (true),
                           den_use_finals (false), viterbi(false),
-                          check_derivs(false), max_dur(0),
+                          check_derivs(false), max_dur(0), num_scale(1.0),
                           min_transition_prob(0.0),
                           offset_first_transitions(false) { }
 
@@ -106,6 +107,7 @@ struct ChainTrainingOptions {
     opts->Register("viterbi", &viterbi, "Use Viterbi instead of FB");
     opts->Register("check-derivs", &check_derivs, "Double check the derivatives");
     opts->Register("max-dur", &max_dur, "Max duration of utterances in the eg (in seconds). Longer egs will not be trained on.");
+    opts->Register("num-scale", &num_scale, "Bigger values  -->  more concentrated numerator occupation probs.");
     opts->Register("trans-probs-filename", &trans_probs_filename, "Double check the derivatives");
     opts->Register("write-trans-stats-prefix", &write_trans_stats_prefix, "Double check the derivatives");
     opts->Register("min-transition-prob", &min_transition_prob, "Minimum transition prob for when transition probs are used");
