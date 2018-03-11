@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+# Copyright      2017  Hossein Hadian
+
+import sys
+import re
+
+
+for line in sys.stdin:
+  parts = line.strip().split(' ', 1)
+  uttid = parts[0]
+  transcript = parts[1]
+  transcript = transcript.replace('[noise]', '@').replace('[vocalized-noise]', '@').replace('[laughter]', '@').replace('<unk>', '@')
+  iwords = transcript.split('@')
+  words = []
+  for iw in iwords:
+    if iw.strip():
+      words.append(iw.replace(' ', ''))
+
+  print("{} {}".format(uttid, ' '.join(words)))

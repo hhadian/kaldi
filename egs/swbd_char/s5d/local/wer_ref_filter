@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+# Copyright      2017  Hossein Hadian
+
+import sys
+import re
+
+
+for line in sys.stdin:
+  parts = line.strip().split(' ', 1)
+  uttid = parts[0]
+  transcript = parts[1].lower()
+  transcript = re.sub('\([a-z\-]+\)', '', transcript)
+  print("{} {}".format(uttid, transcript))
