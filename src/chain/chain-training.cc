@@ -89,7 +89,9 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
       if (nnet_output_deriv)
         nnet_output_deriv->AddMat(1.0, *xent_output_deriv);
     } else if (nnet_output_deriv && numerator_ok) {
-      numerator.Backward(nnet_output_deriv);
+      numerator_ok = numerator.Backward(nnet_output_deriv);
+      if (!numerator_ok)
+        KALDI_LOG << "Numerator backward failed.";
     }
   }
 
