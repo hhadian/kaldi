@@ -131,24 +131,25 @@ if [ $stage -le 4 ]; then
 
   num_targets=$(tree-info $tree_dir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
-  common1="height-offsets=-2,-1,0,1,2 num-filters-out=36"
-  common2="height-offsets=-2,-1,0,1,2 num-filters-out=70"
+  opts="l2-regularize=0.01"
+  common1="$opts height-offsets=-2,-1,0,1,2 num-filters-out=36"
+  common2="$opts height-offsets=-2,-1,0,1,2 num-filters-out=70"
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
-  input dim=40 name=input
+  input dim=50 name=input
 
-  conv-relu-batchnorm-layer name=cnn1 height-in=40 height-out=40 time-offsets=-3,-2,-1,0,1,2,3 $common1
-  conv-relu-batchnorm-layer name=cnn2 height-in=40 height-out=20 time-offsets=-2,-1,0,1,2 $common1 height-subsample-out=2
-  conv-relu-batchnorm-layer name=cnn3 height-in=20 height-out=20 time-offsets=-4,-2,0,2,4 $common2
-  conv-relu-batchnorm-layer name=cnn4 height-in=20 height-out=10 time-offsets=-4,-2,0,2,4 $common2 height-subsample-out=2
-  relu-batchnorm-layer name=tdnn1 input=Append(-4,-2,0,2,4) dim=$tdnn_dim
-  relu-batchnorm-layer name=tdnn2 input=Append(-4,0,4) dim=$tdnn_dim
-  relu-batchnorm-layer name=tdnn3 input=Append(-4,0,4) dim=$tdnn_dim
-  relu-batchnorm-layer name=tdnn4 input=Append(-4,0,4) dim=$tdnn_dim
+  conv-relu-batchnorm-layer name=cnn1 height-in=50 height-out=50 time-offsets=-3,-2,-1,0,1,2,3 $common1
+  conv-relu-batchnorm-layer name=cnn2 height-in=50 height-out=25 time-offsets=-2,-1,0,1,2 $common1 height-subsample-out=2
+  conv-relu-batchnorm-layer name=cnn3 height-in=25 height-out=25 time-offsets=-4,-2,0,2,4 $common2
+  conv-relu-batchnorm-layer name=cnn4 height-in=25 height-out=12 time-offsets=-4,-2,0,2,4 $common2 height-subsample-out=2
+  relu-batchnorm-layer name=tdnn1 input=Append(-4,-2,0,2,4) dim=$tdnn_dim $opts
+  relu-batchnorm-layer name=tdnn2 input=Append(-4,0,4) dim=$tdnn_dim $opts
+  relu-batchnorm-layer name=tdnn3 input=Append(-4,0,4) dim=$tdnn_dim $opts
+  relu-batchnorm-layer name=tdnn4 input=Append(-4,0,4) dim=$tdnn_dim $opts
 
   ## adding the layers for chain branch
-  relu-batchnorm-layer name=prefinal-chain dim=$tdnn_dim target-rms=0.5
-  output-layer name=output include-log-softmax=false dim=$num_targets max-change=1.5
+  relu-batchnorm-layer name=prefinal-chain dim=$tdnn_dim target-rms=0.5 $opts
+  output-layer name=output include-log-softmax=false dim=$num_targets max-change=1.5 $opts
 
   # adding the layers for xent branch
   # This block prints the configs for a separate output that will be
@@ -159,8 +160,8 @@ if [ $stage -le 4 ]; then
   # final-layer learns at a rate independent of the regularization
   # constant; and the 0.5 was tuned so as to make the relative progress
   # similar in the xent and regular final layers.
-  relu-batchnorm-layer name=prefinal-xent input=tdnn4 dim=$tdnn_dim target-rms=0.5
-  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5
+  relu-batchnorm-layer name=prefinal-xent input=tdnn4 dim=$tdnn_dim target-rms=0.5 $opts
+  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5 $opts
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
 fi

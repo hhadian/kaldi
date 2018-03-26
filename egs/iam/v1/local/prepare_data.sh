@@ -151,4 +151,11 @@ if [ $stage -le 0 ]; then
   mv data/local/lobcorpus/0167/download/LOB_COCOA/lob.txt data/local/lobcorpus/0167/download/LOB_COCOA/lob_1.txt
   local/remove_utterances_from_corpus.py data/local/lobcorpus/0167/download/LOB_COCOA/ data/test/ data/val/ data/local/lobcorpus/0167/download/LOB_COCOA/
 
+  local/process_wellington_corpus.py /export/corpora5/Wellington/WWC/Untagged.txt data/local/wellington.txt
+
+  cut -d' ' -f2- data/train/text | \
+  cat data/local/lobcorpus/0167/download/LOB_COCOA/lob.txt \
+      data/local/wellington.txt \
+      data/local/browncorpus/brown.txt > data/local/corpus_data.txt
+
 fi
