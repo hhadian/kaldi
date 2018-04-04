@@ -128,7 +128,7 @@ def train_new_models(dir, iter, srand, num_jobs,
                      l2_regularize, xent_regularize, leaky_hmm_coefficient,
                      momentum, max_param_change,
                      shuffle_buffer_size, num_chunk_per_minibatch_str,
-                     frame_subsampling_factor, run_opts, train_opts,
+                     frame_subsampling_factor, run_opts, train_opts, chain_train_opts,
                      backstitch_training_scale=0.0, backstitch_training_interval=1):
     """
     Called from train_one_iteration(), this method trains new models
@@ -158,6 +158,7 @@ def train_new_models(dir, iter, srand, num_jobs,
     # slower for iteration 0 because of the verbose option.
     #verbose_opt = ("--verbose=1" if iter % 20 == 0 and iter > 0 else "")
     verbose_opt = ("--verbose=2" if iter % 20 == 0 and iter > 0 else "")
+
     for job in range(1, num_jobs+1):
         # k is a zero-based index that we will derive the other indexes from.
         k = num_archives_processed + job - 1
@@ -171,6 +172,14 @@ def train_new_models(dir, iter, srand, num_jobs,
                           if (iter > 0 and os.path.exists("{dir}/cache.{iter}".format(dir=dir, iter=iter))) else "") +
                          (" --write-cache={0}/cache.{1}".format(dir, iter + 1)
                           if job == 1 else ""))
+
+        egs_list = '{egs_dir}/cegs.{archive_index}.ark'.format(egs_dir=egs_dir, archive_index=archive_index)
+        if chain_train_opts is not None:
+            assert(num_jobs == 1)
+            egs_list = ''
+            n = chain_train_opts
+            for i in range(n):
+                egs_list += '{egs_dir}/cegs.{archive_index}.ark '.format(egs_dir=egs_dir, archive_index=archive_index+i*n)
 
         thread = common_lib.background_command(
             """{command} {train_queue_opt} {dir}/log/train.{iter}.{job}.log \
@@ -186,9 +195,9 @@ def train_new_models(dir, iter, srand, num_jobs,
                     --l2-regularize-factor={l2_regularize_factor} {train_opts} \
                     --srand={srand} \
                     "{raw_model}" {dir}/den.fst \
-                    "ark,bg:nnet3-chain-copy-egs \
+                    "ark,bg:cat {egs_list} | nnet3-chain-copy-egs \
                         --frame-shift={fr_shft} \
-                        ark:{egs_dir}/cegs.{archive_index}.ark ark:- | \
+                        ark:- ark:- | \
                         nnet3-chain-shuffle-egs --buffer-size={buf_size} \
                         --srand={srand} ark:- ark:- | nnet3-chain-merge-egs \
                         --minibatch-size={num_chunk_per_mb} ark:- ark:- |" \
@@ -204,13 +213,12 @@ def train_new_models(dir, iter, srand, num_jobs,
                         xent_reg=xent_regularize, leaky=leaky_hmm_coefficient,
                         cache_io_opts=cache_io_opts,
                         parallel_train_opts=run_opts.parallel_train_opts,
-                        verbose_opt=verbose_opt,
+                        verbose_opt=verbose_opt, egs_list=egs_list,
                         momentum=momentum, max_param_change=max_param_change,
                         backstitch_training_scale=backstitch_training_scale,
                         backstitch_training_interval=backstitch_training_interval,
                         l2_regularize_factor=1.0/num_jobs,
                         raw_model=raw_model_string,
-                        egs_dir=egs_dir, archive_index=archive_index,
                         buf_size=shuffle_buffer_size,
                         num_chunk_per_mb=num_chunk_per_minibatch_str),
             require_zero_status=True)
@@ -233,7 +241,7 @@ def train_one_iteration(dir, iter, srand, egs_dir,
                         leaky_hmm_coefficient,
                         momentum, max_param_change, shuffle_buffer_size,
                         frame_subsampling_factor,
-                        run_opts, dropout_edit_string="", do_average=None, train_opts="",
+                        run_opts, dropout_edit_string="", do_average=None, train_opts="", chain_train_opts=None,
                         backstitch_training_scale=0.0, backstitch_training_interval=1):
     """ Called from steps/nnet3/chain/train.py for one iteration for
     neural network training with LF-MMI objective
@@ -313,7 +321,7 @@ def train_one_iteration(dir, iter, srand, egs_dir,
                      l2_regularize=l2_regularize,
                      xent_regularize=xent_regularize,
                      leaky_hmm_coefficient=leaky_hmm_coefficient,
-                     momentum=momentum,
+                     momentum=momentum, chain_train_opts=chain_train_opts,
                      max_param_change=cur_max_param_change,
                      shuffle_buffer_size=shuffle_buffer_size,
                      num_chunk_per_minibatch_str=cur_num_chunk_per_minibatch_str,

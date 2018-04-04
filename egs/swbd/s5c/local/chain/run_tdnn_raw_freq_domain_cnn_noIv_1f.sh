@@ -26,7 +26,7 @@ stage=13
 train_stage=-10
 get_egs_stage=-10
 speed_perturb=true
-dir=exp/chain/tmp # Note: _sp will get added to this if $speed_perturb == true.
+dir=exp/chain/e2e_tdnn_raw_freq_domain_1f # Note: _sp will get added to this if $speed_perturb == true.
 decode_iter=
 decode_nj=50
 proportional_shrink=1.0
@@ -39,16 +39,24 @@ max_param_change=2.0
 final_layer_normalize_target=0.5
 num_jobs_initial=3
 num_jobs_final=16
-minibatch_size=128
+minibatch_size=150=128,64/300=64,32/600=32,16/1200=16
 frames_per_eg=150
 remove_egs=false
-common_egs_dir=exp/chain/cnn_tdnn_energy_preprocess_affine_sp/egs
+common_egs_dir=
 #common_egs_dir=exp/chain/cnn_tdnn_7k_raw_nin_new_train_setup_sp/egs
 #common_egs_dir=exp/chain/cnn_tdnn_lstm_raw_longer_v2_new_cnn_conf_ld5_sp/egs
 xent_regularize=0.1
 iter_to_average=0
 test_online_decoding=false  # if true, it will run the last decoding stage.
 num_filters=100
+
+
+# e2e
+topo_affix=_chain
+tree_affix=_sharedT1S1
+max_dur=3,2
+equal_align_iters=10
+
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
 
@@ -74,18 +82,16 @@ if [ "$speed_perturb" == "true" ]; then
 fi
 
 dir=${dir}${affix:+_$affix}$suffix
-train_set=train_nodup$suffix
+train_set=train_e2e
 ali_dir=exp/tri4_ali_nodup$suffix
-treedir=exp/chain/tri5_7d_tree$suffix
-lang=data/lang_chain_2y
+#treedir=exp/chain/tri5_7d_tree$suffix
+#lang=data/lang_chain_2y
+lang=data/lang${base_lang_affix}_e2e${topo_affix}
+treedir=exp/chain/e2e${base_lang_affix}_bitree${tree_affix}_topo${topo_affix}
 
 
 # if we are using the speed-perturbed data we need to generate
 # alignments for it.
-local/nnet3/run_ivector_common.sh --stage $stage \
-  --speed-perturb $speed_perturb \
-  --generate-alignments $speed_perturb || exit 1;
-
 
 if [ $stage -le 9 ]; then
   # Get the alignments as lattices (gives the LF-MMI training more freedom).
@@ -121,9 +127,9 @@ fi
 
 if [ $stage -le 12 ]; then
   echo "$0: generate raw features."
-  for data_set in $train_set eval2000 rt03 train_dev;do
+  for data_set in eval2000 train_dev;do
     utils/copy_data_dir.sh data/$data_set data/${data_set}_raw_no_mvn
-    steps/make_raw_feats.sh --nj 120 --cmd "$train_cmd" \
+    steps/make_raw_feats.sh --nj 50 --cmd "$train_cmd" \
       --raw-config conf/raw_no_mvn.conf \
       data/${data_set}_raw_no_mvn
   done
@@ -133,19 +139,21 @@ if [ $stage -le 13 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
 
   num_targets=$(tree-info $treedir/tree |grep num-pdfs|awk '{print $2}')
-  learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
+#  learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
+  final_stddev=0
+  final_stddev=$(echo "print(1.0/625)" | python)
 
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
-  input dim=100 name=ivector
   input dim=80 name=input
 
   # please note that it is important to have input layer with the name=input
   # as the layer immediately preceding the fixed-affine-layer to enable
   # the use of short notation for the descriptor
-  preprocess-fft-abs-lognorm-affine-log-layer name=raw0 input=Append(-1,0,1) cos-transform-file=$dir/configs/cos_transform.mat sin-transform-file=$dir/configs/sin_transform.mat num-filters=$num_filters dim=80 half-fft-range=true
+  preprocess-fft-abs-lognorm-ngaffine-log-layer name=raw0 input=Append(-1,0,1) cos-transform-file=$dir/configs/cos_transform.mat sin-transform-file=$dir/configs/sin_transform.mat num-filters=$num_filters dim=80 half-fft-range=true l2-regularize=0.005 max-change=0.2
+
   conv-relu-batchnorm-layer name=cnn1 height-in=$num_filters height-out=50 time-offsets=-1,0,1 height-offsets=-1,0,1 num-filters-out=32 height-subsample-out=2 learning-rate-factor=0.34 max-change=0.25
-  relu-batchnorm-layer name=tdnn1 input=Append(-1,0,1,ReplaceIndex(ivector, t, 0)) dim=625
+  relu-batchnorm-layer name=tdnn1 input=Append(-1,0,1) dim=625
   relu-batchnorm-layer name=tdnn2 input=Append(-1,0,1) dim=625
   relu-batchnorm-layer name=tdnn3 input=Append(-1,0,1) dim=625
   relu-batchnorm-layer name=tdnn4 input=Append(-3,0,3) dim=625
@@ -154,20 +162,8 @@ if [ $stage -le 13 ]; then
   relu-batchnorm-layer name=tdnn7 input=Append(-3,0,3) dim=625
 
   ## adding the layers for chain branch
-  relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=625 target-rms=0.5
-  output-layer name=output include-log-softmax=false dim=$num_targets max-change=1.5
-
-  # adding the layers for xent branch
-  # This block prints the configs for a separate output that will be
-  # trained with a cross-entropy objective in the 'chain' models... this
-  # has the effect of regularizing the hidden parts of the model.  we use
-  # 0.5 / args.xent_regularize as the learning rate factor- the factor of
-  # 0.5 / args.xent_regularize is suitable as it means the xent
-  # final-layer learns at a rate independent of the regularization
-  # constant; and the 0.5 was tuned so as to make the relative progress
-  # similar in the xent and regular final layers.
-  relu-batchnorm-layer name=prefinal-xent input=tdnn7 dim=625 target-rms=0.5
-  output-layer name=output-xent dim=$num_targets learning-rate-factor=$learning_rate_factor max-change=1.5
+  relu-batchnorm-layer name=prefinal-chain input=tdnn7 dim=625 target-rms=0.5 l2-regularize=0.001
+  output-layer name=output include-log-softmax=true dim=$num_targets max-change=1.5 param-stddev=$final_stddev l2-regularize=0.001
 
 EOF
   steps/nnet3/xconfig_to_configs.py --xconfig-file $dir/configs/network.xconfig --config-dir $dir/configs/
@@ -181,26 +177,26 @@ if [ $stage -le 14 ]; then
      /export/b0{5,6,7,8}/$USER/kaldi-data/egs/swbd-$(date +'%m_%d_%H_%M')/s5c/$dir/egs/storage $dir/egs/storage
   fi
 
-  steps/nnet3/chain/train.py --stage $train_stage \
+  steps/nnet3/chain/e2e/train_e2e.py --stage $train_stage \
     --chain.fft-feat-dim $fft_feat_dim \
     --trainer.iter-to-average $iter_to_average \
     --cleanup.preserve-model-interval 10 \
     --cmd "$decode_cmd" \
-    --feat.online-ivector-dir exp/nnet3/ivectors_${train_set} \
     --feat.cmvn-opts "--norm-means=false --norm-vars=false" \
-    --chain.xent-regularize $xent_regularize \
     --chain.leaky-hmm-coefficient 0.1 \
     --chain.l2-regularize 0.00005 \
     --trainer.optimization.shrink-value=1.0 \
     --trainer.optimization.proportional-shrink=$proportional_shrink \
+    --trainer.max-dur-opts=$max_dur \
+    --trainer.equal-align-iters=$equal_align_iters \
     --chain.apply-deriv-weights false \
     --chain.lm-opts="--num-extra-lm-states=2000" \
     --egs.dir "$common_egs_dir" \
     --egs.stage $get_egs_stage \
-    --egs.opts "--frames-overlap-per-eg 0" \
+    --egs.opts "" \
     --egs.chunk-width $frames_per_eg \
-    --trainer.num-chunk-per-minibatch $minibatch_size \
-    --trainer.frames-per-iter 1500000 \
+    --trainer.num-chunk-per-minibatch "$minibatch_size" \
+    --trainer.frames-per-iter 2500000 \
     --trainer.num-epochs $num_epochs \
     --trainer.optimization.num-jobs-initial $num_jobs_initial \
     --trainer.optimization.num-jobs-final $num_jobs_final \
@@ -210,7 +206,6 @@ if [ $stage -le 14 ]; then
     --cleanup.remove-egs $remove_egs \
     --feat-dir data/${train_set}_raw_no_mvn \
     --tree-dir $treedir \
-    --lat-dir exp/tri4_lats_nodup${suffix}_snip_edges_f_v2 \
     --dir $dir  || exit 1;
 
 fi
@@ -230,12 +225,11 @@ if [ ! -z $decode_iter ]; then
 fi
 if [ $stage -le 16 ]; then
   rm $dir/.error 2>/dev/null || true
-  for decode_set in train_dev eval2000 rt03; do
+  for decode_set in eval2000; do
   #for decode_set in train_dev; do
       (
-      steps/nnet3/decode.sh --acwt 1.0 --post-decode-acwt 10.0 \
+      steps/nnet3/decode.sh --acwt 1.8 --post-decode-acwt 15.0 \
           --nj $decode_nj --cmd "$decode_cmd" $iter_opts \
-          --online-ivector-dir exp/nnet3/ivectors_${decode_set} \
           $graph_dir data/${decode_set}_raw_no_mvn \
           $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_tg || exit 1;
       if $has_fisher; then
@@ -251,6 +245,7 @@ if [ $stage -le 16 ]; then
     exit 1
   fi
 fi
+exit 0;
 
 if $test_online_decoding && [ $stage -le 16 ]; then
   # note: if the features change (e.g. you add pitch features), you will have to
@@ -260,13 +255,13 @@ if $test_online_decoding && [ $stage -le 16 ]; then
        $lang exp/nnet3/extractor $dir ${dir}_online
 
   rm $dir/.error 2>/dev/null || true
-  for decode_set in train_dev eval2000; do
+  for decode_set in eval2000; do
     (
       # note: we just give it "$decode_set" as it only uses the wav.scp, the
       # feature type does not matter.
 
       steps/online/nnet3/decode.sh --nj $decode_nj --cmd "$decode_cmd" \
-          --acwt 1.0 --post-decode-acwt 10.0 \
+          --acwt 1.5 --post-decode-acwt 15.0 \
          $graph_dir data/${decode_set}_hires \
          ${dir}_online/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_tg || exit 1;
       if $has_fisher; then

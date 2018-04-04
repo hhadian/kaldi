@@ -263,8 +263,12 @@ bool DenominatorComputation::Backward(
   Beta(frames_per_sequence_);
   for (int32 t = frames_per_sequence_ - 1; t >= 0; t--) {
     BetaDashGeneralFrame(t);
-    if (GetVerboseLevel() >= 1 || t == 0)
+    if (GetVerboseLevel() >= 1 || t == 0  || t == frames_per_sequence_ - 1)
       BetaGeneralFrameDebug(t);
+    if (!ok_) {
+      KALDI_LOG << "Terminating Backward early due to excesssive errors...";
+      return ok_;
+    }
     Beta(t);
     if (t % kMaxDerivTimeSteps == 0) {
       // commit the derivative stored in nnet_output_deriv_transposed_ by adding

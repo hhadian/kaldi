@@ -23,10 +23,50 @@
 #include "chain/chain-numerator.h"
 #include "chain/chain-generic-numerator.h"
 #include "chain/chain-denominator.h"
+#include "hmm/transition-model.h"
+#include "fstext/fstext-lib.h"
 
 namespace kaldi {
 namespace chain {
 
+bool TryEqualAlign(const Supervision &supervision, BaseFloat *objf,
+                   CuMatrixBase<BaseFloat> *nnet_output_deriv) {
+  typedef kaldi::int32 int32;
+  using fst::SymbolTable;
+  using fst::VectorFst;
+  using fst::StdArc;
+  int32 rand_seed = 27;
+  int32 T = supervision.frames_per_sequence;
+  int32 B = supervision.num_sequences;
+  int32 N = supervision.label_dim;
+  *objf = 0.0;
+  Matrix<BaseFloat> deriv;
+  if (nnet_output_deriv)
+    deriv.Resize(nnet_output_deriv->NumRows(), nnet_output_deriv->NumCols(),
+                 kSetZero);
+  for (int32 s = 0; s < B; s++) {
+    VectorFst<StdArc> path;
+    if (EqualAlign(supervision.e2e_fsts[s], T, rand_seed, &path) ) {
+      std::vector<int32> aligned_seq; // the labels are PdfIds + 1
+      StdArc::Weight w;
+      GetLinearSymbolSequence(path, &aligned_seq, (std::vector<int32> *)NULL, &w);
+      KALDI_ASSERT(aligned_seq.size() == T);
+      *objf -= w.Value();
+      if (nnet_output_deriv) {
+        for (int32 t = 0; t < T; t++)
+          deriv(t*B + s, aligned_seq[t] - 1) = 1.0;
+      }
+    } else {
+      KALDI_WARN << "AlignEqual: failed on seq: " << s;
+      return false;
+    }
+  }
+  if (nnet_output_deriv) {
+    CuMatrix<BaseFloat> tmp(deriv);
+    nnet_output_deriv->AddMat(1.0, tmp);
+  }
+  return true;
+}
 
 
 void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
@@ -55,9 +95,16 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
                                        nnet_output);
 
     den_logprob_weighted = supervision.weight * denominator.Forward();
-    if (nnet_output_deriv)
+
+    KALDI_LOG << "Den Logprob per frame: "
+              << den_logprob_weighted / (*weight);
+    denominator_ok = (den_logprob_weighted - den_logprob_weighted == 0);
+    if (denominator_ok && nnet_output_deriv) {
       denominator_ok = denominator.Backward(-supervision.weight,
                                 nnet_output_deriv);
+      KALDI_LOG << "Den Backward " << (denominator_ok ? "succeeded" : "failed") << ".";
+    }
+
   }
 
   if (xent_output_deriv != NULL) {
@@ -70,13 +117,16 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
                               kSetZero, kStrideEqualNumCols);
   }
 
-
+  if (!denominator_ok) {
+    nnet_output_deriv->SetZero();
+    den_logprob_weighted = -8.0 * (*weight);
+  }
   {
     GenericNumeratorComputation numerator(supervision, nnet_output);
     // note: supervision.weight is included as a factor in the derivative from
     // the numerator object, as well as the returned logprob.
     num_logprob_weighted = numerator.Forward();
-    KALDI_VLOG(2) << "Numerator logprob per frame: "
+    KALDI_LOG << "Numerator logprob per frame: "
                   << num_logprob_weighted / (*weight);
     numerator_ok = (num_logprob_weighted - num_logprob_weighted == 0);
     if (!numerator_ok)
@@ -86,15 +136,35 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
       numerator_ok = numerator.Backward(xent_output_deriv);
       if (!numerator_ok)
         KALDI_LOG << "Numerator backward failed.";
+      if (opts.num_scale != 1.0) {
+        xent_output_deriv->ApplyPow(opts.num_scale);
+        xent_output_deriv->ApplySoftMaxPerRow(*xent_output_deriv);
+      }
       if (nnet_output_deriv)
         nnet_output_deriv->AddMat(1.0, *xent_output_deriv);
     } else if (nnet_output_deriv && numerator_ok) {
-      numerator.Backward(nnet_output_deriv);
+      numerator_ok = numerator.Backward(nnet_output_deriv);
+      if (!numerator_ok)
+        KALDI_LOG << "Numerator backward failed.";
     }
   }
 
+  if (!numerator_ok && opts.equal_align) {
+    numerator_ok = TryEqualAlign(supervision, &num_logprob_weighted,
+                                 nnet_output_deriv);
+    KALDI_LOG << "Doing EqualAlign. EqAlign Logprob: "
+              << num_logprob_weighted / (*weight) << "     OK:" << numerator_ok;
+  } else if (!numerator_ok && !opts.equal_align) {
+    KALDI_LOG << "Not doing equal-align because it is disabled.";
+  }
+  if (xent_output_deriv && nnet_output_deriv)
+    xent_output_deriv->CopyFromMat(*nnet_output_deriv);
+
+
   *objf = num_logprob_weighted - den_logprob_weighted;
-  if (!((*objf) - (*objf) == 0) || !denominator_ok || !numerator_ok) {
+  KALDI_LOG << "Objf: " << *objf / *weight;
+
+  if ((*objf - *objf) != 0.0 || !denominator_ok || !numerator_ok) {
     // inf or NaN detected, or denominator computation returned false.
     if (nnet_output_deriv)
       nnet_output_deriv->SetZero();
@@ -128,9 +198,8 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
     KALDI_LOG << "Derivs per frame are " << row_products_per_frame;
   }
 
-  if (opts.l2_regularize == 0.0) {
-    *l2_term = 0.0;
-  } else if (numerator_ok) {  // we should have some derivs to include a L2 term
+  *l2_term = 0.0;
+  if (opts.l2_regularize != 0.0 && numerator_ok) {  // we should have some derivs to include a L2 term
     // compute the l2 penalty term and its derivative
     BaseFloat scale = supervision.weight * opts.l2_regularize;
     *l2_term = -0.5 * scale * TraceMatMat(nnet_output, nnet_output, kTrans);

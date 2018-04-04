@@ -61,8 +61,12 @@ struct ChainTrainingOptions {
   // should have a softmax as its final nonlinearity.
   BaseFloat xent_regularize;
 
+  bool equal_align;
+  BaseFloat max_dur;
+  BaseFloat num_scale;
+
   ChainTrainingOptions(): l2_regularize(0.0), leaky_hmm_coefficient(1.0e-05),
-                          xent_regularize(0.0) { }
+                          xent_regularize(0.0), equal_align(false), max_dur(0), num_scale(1.0) { }
 
   void Register(OptionsItf *opts) {
     opts->Register("l2-regularize", &l2_regularize, "l2 regularization "
@@ -73,6 +77,9 @@ struct ChainTrainingOptions {
                    "HMM state, to ensure gradual forgetting of context (can "
                    "improve generalization).  For numerical reasons, may not be "
                    "exactly zero.");
+    opts->Register("equal-align", &equal_align, "Do equal align if necessary or not?");
+    opts->Register("max-dur", &max_dur, "Max duration of utterances in the eg (in seconds). Longer egs will not be trained on.");
+    opts->Register("num-scale", &num_scale, "Bigger values  -->  more concentrated numerator occupation probs.");
     opts->Register("xent-regularize", &xent_regularize, "Cross-entropy "
                    "regularization constant for 'chain' training.  If "
                    "nonzero, the network is expected to have an output "

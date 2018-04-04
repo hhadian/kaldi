@@ -29,7 +29,8 @@ class XconfigFftFilterLayer(XconfigLayerBase):
         assert first_token in ['preprocess-fft-abs-lognorm-affine-log-layer',
                                'preprocess-fft-abs-norm-lognorm-affine-log-layer',
                                'preprocess-fft-abs-norm-affine-log-layer',
-                               'preprocess-fft-abs-log-layer']
+                               'preprocess-fft-abs-log-layer',
+                               'preprocess-fft-abs-lognorm-ngaffine-log-layer']
         XconfigLayerBase.__init__(self, first_token, key_to_value, prev_names)
 
     def set_default_configs(self):
@@ -81,7 +82,7 @@ class XconfigFftFilterLayer(XconfigLayerBase):
 
     def output_dim(self):
         split_layer_name = self.layer_type.split('-')
-        if 'affine' in split_layer_name:
+        if 'affine' in split_layer_name or 'ngaffine' in split_layer_name:
             output_dim = self.config['num-filters']
             if 'norm' in split_layer_name:
                 output_dim = output_dim + 1
@@ -302,6 +303,19 @@ class XconfigFftFilterLayer(XconfigLayerBase):
 
             elif nonlinearity == 'affine':
                 configs.append('component name={0}.filterbank type=AffineComponent '
+                               'input-dim={1} output-dim={2} max-change={3} '
+                               'min-param-value={4} max-param-value={5} '
+                               'bias-stddev=0.0 l2-regularize={6} {7}'
+                               ''.format(self.name, cur_dim, num_filters, max_change,
+                                         min_param_value, max_param_value,
+                                         l2_regularize, learning_rate_option))
+                configs.append('component-node name={0}.filterbank '
+                               'component={0}.filterbank input={1}'
+                               ''.format(self.name, cur_node))
+                cur_node = '{0}.filterbank'.format(self.name)
+                cur_dim = num_filters
+            elif nonlinearity == 'ngaffine':
+                configs.append('component name={0}.filterbank type=NaturalGradientAffineComponent '
                                'input-dim={1} output-dim={2} max-change={3} '
                                'min-param-value={4} max-param-value={5} '
                                'bias-stddev=0.0 l2-regularize={6} {7}'

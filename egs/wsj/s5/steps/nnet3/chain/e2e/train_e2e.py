@@ -62,6 +62,20 @@ def get_args():
                         is the 'principal' chunk-width, used preferentially""")
 
     # chain options
+    parser.add_argument("--trainer.equal-align-iters", type=int, dest='equal_align_iters',
+                        default=0,
+                        help="Number of iters to do training with EqaulAlign enabled")
+    parser.add_argument("--chain.l1-regularize", type=float,
+                        dest='l1_regularize', default=0.0,
+                        help="""Weight of regularization function which is the
+                        l1-norm of the fft transform of convolution filters in
+                        the network.""")
+    parser.add_argument("--chain.fft-feat-dim", type=int,
+                        dest='fft_feat_dim', default=0,
+                        help="""If nonzero, the cosine and sine transformation
+                        with dim fft_feat_dim and closest 2-power of that is
+                        generated as configs/{cos,sin}_transform.mat.
+                        """)
     parser.add_argument("--chain.lm-opts", type=str, dest='lm_opts',
                         default=None, action=common_lib.NullstrToNoneAction,
                         help="options to be be passed to chain-est-phone-lm")
@@ -116,6 +130,16 @@ def get_args():
                         rule as accepted by the --minibatch-size option of
                         nnet3-merge-egs; run that program without args to see
                         the format.""")
+    parser.add_argument("--trainer.iter-to-average", type=int, default=0,
+                        dest="iter_to_average",
+                        help="""The model are averaged for iterations larger than
+                                this value, otherwise, the
+                                best model selected and minibatch-size
+                                and max-param-change is 1/2 and 1/sqrt(2)
+                                of the original values.""")
+    parser.add_argument("--trainer.max-dur-opts", type=str, dest='max_dur_opts',
+                        default="",
+                        help="max duration settings to apply at each iteration so shorter egs are trained first.")
 
     # Parameters for the optimization
     parser.add_argument("--trainer.optimization.initial-effective-lrate",
@@ -309,6 +333,23 @@ def train(args, run_opts):
         logger.info("Creating denominator FST")
         chain_lib.create_denominator_fst(args.dir, args.tree_dir, run_opts)
 
+    if (args.l1_regularize != 0) or (args.fft_feat_dim != 0):
+        ffeat_dim = args.fft_feat_dim
+        logger.info("fft-feat dim is")
+        add_bias = True
+        num_fft_bins = (2**(ffeat_dim-1).bit_length())
+        common_lib.write_sin_cos_transform_matrix(ffeat_dim, num_fft_bins,
+            "{0}/configs/cos_transform.mat".format(args.dir),
+            compute_cosine=True, add_bias=add_bias, half_range=True)
+        common_lib.write_sin_cos_transform_matrix(ffeat_dim, num_fft_bins,
+            "{0}/configs/sin_transform.mat".format(args.dir),
+            compute_cosine=False, add_bias=add_bias, half_range=True)
+        common_lib.write_negate_vector(num_fft_bins,
+            "{0}/configs/negate.vec".format(args.dir))
+        preemph = 0.97
+        common_lib.compute_and_write_preprocess_transform(preemph, ffeat_dim,
+            "{0}/configs/preprocess.mat".format(args.dir))
+
     if (args.stage <= -4):
         logger.info("Initializing a basic network...")
         common_lib.execute_command(
@@ -389,6 +430,8 @@ def train(args, run_opts):
     with open("{0}/frame_subsampling_factor".format(args.dir), "w") as f:
         f.write(str(args.frame_subsampling_factor))
 
+
+
     # set num_iters so that as close as possible, we process the data
     # $num_epochs times, i.e. $num_iters*$avg_num_jobs) ==
     # $num_epochs*$num_archives, where
@@ -413,18 +456,57 @@ def train(args, run_opts):
     logger.info("Training will run for {0} epochs = "
                 "{1} iterations".format(args.num_epochs, num_iters))
 
+    equal_align = True  # keep it true for 20 first iterations
     for iter in range(num_iters):
 
         percent = num_archives_processed * 100.0 / num_archives_to_process
         epoch = (num_archives_processed * args.num_epochs
                  / num_archives_to_process)
 
+        if equal_align and iter >= args.equal_align_iters:
+            equal_align = False
+            logger.info("*** equal_align was disabled at iter: {} ***".format(iter))
+
         if (args.exit_stage is not None) and (iter == args.exit_stage):
             logger.info("Exiting early due to --exit-stage {0}".format(iter))
             return
+
+        do_average = (iter > args.iter_to_average)
+        edits_config = "{0}/configs/edit.{1}.config".format(args.dir, iter)
+        nnet_config = "{0}/configs/nnet.{1}.config".format(args.dir, iter)
+        if (os.path.exists(edits_config) or os.path.exists(nnet_config)) and args.stage <= iter:
+            logger.info("edditing model using edit.{0}.config and nnet.{0}.config".format(iter))
+            edit_config_str = ('--edits-config={0}'.format(edits_config) if
+                os.path.exists(edits_config) else '')
+            nnet_config_str = ('--nnet-config={0}'.format(nnet_config) if
+                os.path.exists(nnet_config) else '')
+
+            shutil.copy2('{0}/{1}.mdl'.format(args.dir, iter), '{0}/{1}.mdl.bkup'.format(args.dir, iter))
+            common_lib.execute_command(
+            """{command} {dir}/log/edit.{iter}.mdl.log \
+            nnet3-am-copy {nnet_config} {edit_config} {dir}/{iter}.mdl.bkup \
+            {dir}/{iter}.mdl""".format(command=run_opts.command, dir=args.dir,
+                                 nnet_config=nnet_config_str,
+                                 edit_config=edit_config_str,
+                                 iter=iter))
+            os.remove('{0}/{1}.mdl.bkup'.format(args.dir, iter))
+            if os.path.exists("{0}/cache.{1}".format(args.dir, iter)):
+                os.remove('{0}/cache.{1}'.format(args.dir, iter))
+            do_average = False
+
         current_num_jobs = int(0.5 + args.num_jobs_initial
                                + (args.num_jobs_final - args.num_jobs_initial)
                                * float(iter) / num_iters)
+
+        warmup_iters = 10
+        eg_dup = None
+        if iter < warmup_iters and args.max_dur_opts != "":
+            current_num_jobs = 1
+            eg_dup = 7
+        elif args.max_dur_opts != "":
+            current_num_jobs = int(0.5 + args.num_jobs_initial
+                                   + (args.num_jobs_final - args.num_jobs_initial)
+                                   * float(iter - warmup_iters) / num_iters)
 
         if args.stage <= iter:
             model_file = "{dir}/{iter}.mdl".format(dir=args.dir, iter=iter)
@@ -447,15 +529,26 @@ def train(args, run_opts):
                                         args.shrink_saturation_threshold)
                                    else shrinkage_value)
 
+            max_dur_this_iter = 0
+            chain_opts = (' --equal-align={}'.format(
+                              equal_align))
+
+            if args.max_dur_opts != "":
+                max_dur_start, max_dur_step = (float(a) for a in args.max_dur_opts.split(","))
+                max_dur_this_iter = max_dur_start + max_dur_step * iter
+                chain_opts += " --max-dur={}".format(max_dur_this_iter)
+
             shrink_info_str = ''
             if shrinkage_value != 1.0:
                 shrink_info_str = 'shrink: {0:0.5f}'.format(shrinkage_value)
             logger.info("Iter: {0}/{1}    "
                         "Epoch: {2:0.2f}/{3:0.1f} ({4:0.1f}% complete)    "
-                        "lr: {5:0.6f}    {6}".format(iter, num_iters - 1,
+                        "lr: {5:0.6f}  nj: {6} max-dur:{7}  {8}".format(iter, num_iters - 1,
                                                      epoch, args.num_epochs,
                                                      percent,
-                                                     lrate, shrink_info_str))
+                                                     lrate, current_num_jobs, max_dur_this_iter,
+                                                     shrink_info_str))
+
 
             chain_lib.train_one_iteration(
                 dir=args.dir,
@@ -482,7 +575,8 @@ def train(args, run_opts):
                 max_param_change=args.max_param_change,
                 shuffle_buffer_size=args.shuffle_buffer_size,
                 frame_subsampling_factor=args.frame_subsampling_factor,
-                run_opts=run_opts)
+                run_opts=run_opts, train_opts=chain_opts, chain_train_opts=eg_dup,
+                do_average=do_average)
 
 
             if args.cleanup:

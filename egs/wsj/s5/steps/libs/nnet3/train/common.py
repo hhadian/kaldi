@@ -102,7 +102,7 @@ def get_multitask_egs_opts(egs_dir, egs_prefix="",
 
 
 def get_successful_models(num_models, log_file_pattern,
-                          difference_threshold=1.0,
+                          difference_threshold=10.0,
                           min_acceptable_obj_for_average=-1000.0):
     assert num_models > 0
     do_average = True

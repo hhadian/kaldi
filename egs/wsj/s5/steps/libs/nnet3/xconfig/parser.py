@@ -77,6 +77,7 @@ config_to_layer = {
         'preprocess-fft-abs-norm-lognorm-affine-log-layer': xlayers.XconfigFftFilterLayer,
         'preprocess-fft-abs-lognorm-affine-log-layer': xlayers.XconfigFftFilterLayer,
         'preprocess-fft-abs-log-layer': xlayers.XconfigFftFilterLayer,
+        'preprocess-fft-abs-lognorm-ngaffine-log-layer': xlayers.XconfigFftFilterLayer,
         'preprocess-tconv-abs-log-nin-affine-layer': xlayers.XconfigTimeDomainLayer,
         'gru-layer' : xlayers.XconfigGruLayer,
         'pgru-layer' : xlayers.XconfigPgruLayer,

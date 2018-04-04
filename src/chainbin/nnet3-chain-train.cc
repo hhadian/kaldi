@@ -83,11 +83,33 @@ int main(int argc, char *argv[]) {
       NnetChainTrainer trainer(opts, den_fst, &nnet);
 
       SequentialNnetChainExampleReader example_reader(examples_rspecifier);
-
-      for (; !example_reader.Done(); example_reader.Next())
-        trainer.Train(example_reader.Value());
+      int32 tot_frames = 0, discarded_frames = 0;
+      for (; !example_reader.Done(); example_reader.Next()) {
+        const NnetChainExample &eg = example_reader.Value();
+        std::cerr << "\n";
+        KALDI_LOG << "Training on minibatch " << example_reader.Key()
+                  << "  T: " << eg.outputs[0].supervision.frames_per_sequence
+                  << "  N: " << eg.outputs[0].supervision.num_sequences;
+        tot_frames += eg.outputs[0].supervision.frames_per_sequence *
+            eg.outputs[0].supervision.num_sequences;
+        int32 max_frames = static_cast<int32>(opts.chain_config.max_dur * 100.0 / 3.0);
+        if (opts.chain_config.max_dur > 0 &&
+            eg.outputs[0].supervision.frames_per_sequence > max_frames) {
+          KALDI_LOG << "Minibatch discarded because it is too long: "
+                    << "max-frames = " << max_frames;
+          discarded_frames += eg.outputs[0].supervision.frames_per_sequence *
+              eg.outputs[0].supervision.num_sequences;
+          continue;
+        }
+        trainer.Train(eg);
+      }
 
       ok = trainer.PrintTotalStats();
+      KALDI_LOG << "Total number of frames: "
+                << tot_frames << " discarded: "
+                << discarded_frames << " (" << 100.0 * discarded_frames / tot_frames
+                << " percent).";
+
     }
 
 #if HAVE_CUDA==1
