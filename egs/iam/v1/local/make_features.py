@@ -275,7 +275,7 @@ with open(data_list_path) as f:
         data = np.transpose(im_padded, (1, 0))
         data = np.divide(data, 255.0)
         num_ok += 1
-        #write_kaldi_matrix(out_fh, data, image_id)
+        write_kaldi_matrix(out_fh, data, image_id)
 
 print('Generated features for {} images. Failed for {} (image too '
       'long).'.format(num_ok, num_fail), file=sys.stderr)
