@@ -2,6 +2,7 @@
 
 # Copyright      2017  Chun Chieh Chang
 #                2017  Ashish Arora
+#                2017  Yiwen Shao
 #                2018  Hossein Hadian
 
 """ This script converts images to Kaldi-format feature matrices. The input to
@@ -41,8 +42,6 @@ parser.add_argument('--feat-dim', type=int, default=40,
 parser.add_argument('--padding', type=int, default=5,
                     help='Number of white pixels to pad on the left'
                     'and right side of the image.')
-parser.add_argument('--augment', type=str, default='false',
-                    help='whether or not to do image augmentation on training set')
 parser.add_argument('--vertical-shift', type=int, default=10,
                     help='total number of padding pixel per column')
 parser.add_argument('--horizontal-shear', type=int, default=45,
@@ -76,14 +75,34 @@ def get_scaled_image(im):
     nx = int(scale_size)
     ny = int(scale * sx)
     im = misc.imresize(im, (nx, ny))
-    padding_x = max(5, int((args.padding / 100) * im.shape[1]))
-    padding_y = im.shape[0]
-    im_pad = np.concatenate(
-        (255 * np.ones((padding_y, padding_x), dtype=int), im), axis=1)
-    im_pad1 = np.concatenate(
-        (im_pad, 255 * np.ones((padding_y, padding_x), dtype=int)), axis=1)
+    return im
+
+
+def horizontal_pad(im, allowed_lengths = None):
+    if allowed_lengths is None:
+        left_padding = right_padding = args.padding
+    else:  # Find an allowed length for the image
+        imlen = im.shape[1] # width
+        allowed_len = 0
+        for l in allowed_lengths:
+            if l > imlen:
+                allowed_len = l
+                break
+        if allowed_len == 0:
+            #  No allowed length was found for the image (the image is too long)
+            return None
+        padding = allowed_len - imlen
+        left_padding = int(padding // 2)
+        right_padding = padding - left_padding
+    dim_y = im.shape[0] # height
+    im_pad = np.concatenate((255 * np.ones((dim_y, left_padding),
+                                           dtype=int), im), axis=1)
+    im_pad1 = np.concatenate((im_pad, 255 * np.ones((dim_y, right_padding),
+                                                    dtype=int)), axis=1)
     return im_pad1
 
+### main ###
+data_list_path = os.path.join(args.dir, 'images.scp')
 
 def contrast_normalization(im, low_pct, high_pct):
     element_number = im.size
@@ -212,27 +231,6 @@ def vertical_shift(im, mode='mid'):
     return im_pad
 
 
-def image_augment(im, out_fh, image_id):
-    # shift_setting = ['mid', 'top', 'bottom']
-    slant_degree = find_slant_project(im)
-    shear_degrees = [0, random.randint(0, args.horizontal_shear),
-                     random.randint(-args.horizontal_shear, 0)]
-    im_deslanted = horizontal_shear(im, slant_degree)
-    image_shear_id = []
-    for i in range(3):
-        image_shear_id.append(image_id + '_shear' + str(i + 1))
-        im_shear = horizontal_shear(im_deslanted, shear_degrees[i])
-        data = np.transpose(im_shear, (1, 0))
-        data = np.divide(data, 255.0)
-        write_kaldi_matrix(out_fh, data, image_shear_id[i])
-
-        # image_shift_id.append(image_id + '_shift' + str(i + 1))
-        # im_shift = vertical_shift(im, shift_setting[i])
-        # data = np.transpose(im_shift, (1, 0))
-        # data = np.divide(data, 255.0)
-        # write_kaldi_matrix(out_fh, data, image_shift_id[i])
-
-
 # main #
 
 random.seed(1)
@@ -246,32 +244,38 @@ else:
     out_fh = open(args.out_ark, 'wb')
 
 
-if (args.augment == 'true') and ('train' in args.dir):
-    # only do image augmentation for training data
-    with open(data_list_path) as f:
+allowed_lengths = None
+if os.path.isfile(os.path.join(args.dir, 'allowed_lengths.txt')):
+    print("Found 'allowed_lengths.txt' file...", file=sys.stderr)
+    allowed_lengths = []
+    with open(os.path.join(args.dir,'allowed_lengths.txt')) as f:
         for line in f:
-            line = line.strip()
-            line_vect = line.split(' ')
-            image_id = line_vect[0]
-            image_path = line_vect[1]
-            im = misc.imread(image_path)
-            im_contrast = contrast_normalization(im, 0.05, 0.2)
-            im_scaled = get_scaled_image(im)
-            image_augment(im_scaled, out_fh, image_id)
+            allowed_lengths.append(int(line.strip()))
+    print("Read {} allowed lengths and will apply them to the "
+          "features.".format(len(allowed_lengths)), file=sys.stderr)
 
-else:  # settings for without augmentation or test data
-    with open(data_list_path) as f:
-        for line in f:
-            line = line.strip()
-            line_vect = line.split(' ')
-            image_id = line_vect[0]
-            image_path = line_vect[1]
-            im = misc.imread(image_path)
-            im_scaled = get_scaled_image(im)
-            im_contrast = contrast_normalization(im_scaled, 0.05, 0.2)
-            slant_degree = find_slant_project(im_contrast)
-            im_sheared = horizontal_shear(im_contrast, slant_degree)
-            im_padded = vertical_shift(im_sheared)
-            data = np.transpose(im_padded, (1, 0))
-            data = np.divide(data, 255.0)
-            write_kaldi_matrix(out_fh, data, image_id)
+num_fail = 0
+num_ok = 0
+with open(data_list_path) as f:
+    for line in f:
+        line = line.strip()
+        line_vect = line.split(' ')
+        image_id = line_vect[0]
+        image_path = line_vect[1]
+        im = misc.imread(image_path)
+        im_scaled = get_scaled_image(im)
+        im_contrast = contrast_normalization(im_scaled, 0.05, 0.2)
+        slant_degree = find_slant_project(im_contrast)
+        im_sheared = horizontal_shear(im_contrast, slant_degree)
+        im_horizontal_padded = horizontal_pad(im_sheared, allowed_lengths)
+        if im_horizontal_padded is None:
+            num_fail += 1
+            continue
+        im_padded = vertical_shift(im_horizontal_padded)
+        data = np.transpose(im_padded, (1, 0))
+        data = np.divide(data, 255.0)
+        num_ok += 1
+        #write_kaldi_matrix(out_fh, data, image_id)
+
+print('Generated features for {} images. Failed for {} (image too '
+      'long).'.format(num_ok, num_fail), file=sys.stderr)
