@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # chainali_1c is as chainali_1b except it uses l2-regularize
-# local/chain/compare_wer.sh exp/chain/cnn_1a/ exp/chain/cnn_chainali_1b_old/ exp/chain/cnn_chainali_1c/
-# System                         cnn_1a cnn_chainali_1b cnn_chainali_1c
-# WER                             16.63     14.67   12.52
-# CER                              8.59     7.31    5.71
-# Final train prob              -0.0245   0.0042    -0.0345
-# Final valid prob              -0.0934  -0.0256    -0.0370
-# Final train prob (xent)       -0.5122  -0.6282    -0.9788
-# Final valid prob (xent)       -0.9328  -0.9096    -1.1175
-# Parameters                      4.36M    3.96M      3.96M
+# ./local/chain/compare_wer.sh exp/chain/cnn_1a/ exp/chain/cnn_chainali_1c/
+# System                         cnn_1a cnn_chainali_1c
+# WER                             15.17     12.16
+# CER                              7.43      5.35
+# Final train prob              -0.0192   -0.0086
+# Final valid prob              -0.0937   -0.0395
+# Final train prob (xent)       -0.4317   -0.9199
+# Final valid prob (xent)       -0.8371   -1.0001
+# Parameters                      4.36M     3.96M
 
 #steps/info/chain_dir_info.pl exp/chain/cnn_chainali_1c
-#exp/chain/cnn_chainali_1c: num-iters=21 nj=2..4 num-params=4.0M dim=40->376 combine=-0.035->-0.035 (over 1) xent:train/valid[13,20,final]=(-3.82,-1.39,-0.979/-3.95,-1.52,-1.12) logprob:train/valid[13,20,final]=(-0.392,-0.068,-0.034/-0.405,-0.072,-0.037)
+#exp/chain/cnn_chainali_1c: num-iters=21 nj=2..4 num-params=4.0M dim=40->368 combine=-0.015->-0.015 (over 1) xent:train/valid[13,20,final]=(-1.41,-0.941,-0.920/-1.42,-1.01,-1.00) logprob:train/valid[13,20,final]=(-0.050,-0.015,-0.009/-0.066,-0.042,-0.040)
 set -e -o pipefail
 
 stage=0
@@ -142,15 +142,15 @@ if [ $stage -le 4 ]; then
   common3="$cnn_opts required-time-offsets= height-offsets=-1,0,1 num-filters-out=70"
   mkdir -p $dir/configs
   cat <<EOF > $dir/configs/network.xconfig
-  input dim=50 name=input
+  input dim=40 name=input
 
-  conv-relu-batchnorm-layer name=cnn1 height-in=50 height-out=50 time-offsets=-3,-2,-1,0,1,2,3 $common1
-  conv-relu-batchnorm-layer name=cnn2 height-in=50 height-out=25 time-offsets=-2,-1,0,1,2 $common1 height-subsample-out=2
-  conv-relu-batchnorm-layer name=cnn3 height-in=25 height-out=25 time-offsets=-4,-2,0,2,4 $common2
-  conv-relu-batchnorm-layer name=cnn4 height-in=25 height-out=25 time-offsets=-4,-2,0,2,4 $common2
-  conv-relu-batchnorm-layer name=cnn5 height-in=25 height-out=12 time-offsets=-4,-2,0,2,4 $common2 height-subsample-out=2
-  conv-relu-batchnorm-layer name=cnn6 height-in=12 height-out=12 time-offsets=-1,0,1 $common3
-  conv-relu-batchnorm-layer name=cnn7 height-in=12 height-out=12 time-offsets=-1,0,1 $common3
+  conv-relu-batchnorm-layer name=cnn1 height-in=40 height-out=40 time-offsets=-3,-2,-1,0,1,2,3 $common1
+  conv-relu-batchnorm-layer name=cnn2 height-in=40 height-out=20 time-offsets=-2,-1,0,1,2 $common1 height-subsample-out=2
+  conv-relu-batchnorm-layer name=cnn3 height-in=20 height-out=20 time-offsets=-4,-2,0,2,4 $common2
+  conv-relu-batchnorm-layer name=cnn4 height-in=20 height-out=20 time-offsets=-4,-2,0,2,4 $common2
+  conv-relu-batchnorm-layer name=cnn5 height-in=20 height-out=10 time-offsets=-4,-2,0,2,4 $common2 height-subsample-out=2
+  conv-relu-batchnorm-layer name=cnn6 height-in=10 height-out=10 time-offsets=-1,0,1 $common3
+  conv-relu-batchnorm-layer name=cnn7 height-in=10 height-out=10 time-offsets=-1,0,1 $common3
   relu-batchnorm-layer name=tdnn1 input=Append(-4,-2,0,2,4) dim=$tdnn_dim $tdnn_opts
   relu-batchnorm-layer name=tdnn2 input=Append(-4,0,4) dim=$tdnn_dim $tdnn_opts
   relu-batchnorm-layer name=tdnn3 input=Append(-4,0,4) dim=$tdnn_dim $tdnn_opts

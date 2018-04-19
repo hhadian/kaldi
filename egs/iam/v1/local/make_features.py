@@ -271,8 +271,8 @@ with open(data_list_path) as f:
         if im_horizontal_padded is None:
             num_fail += 1
             continue
-        im_padded = vertical_shift(im_horizontal_padded)
-        data = np.transpose(im_padded, (1, 0))
+        #im_padded = vertical_shift(im_horizontal_padded)
+        data = np.transpose(im_horizontal_padded, (1, 0))
         data = np.divide(data, 255.0)
         num_ok += 1
         write_kaldi_matrix(out_fh, data, image_id)
