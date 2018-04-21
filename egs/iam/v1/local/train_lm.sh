@@ -58,12 +58,12 @@ if [ $stage -le 0 ]; then
   rm ${dir}/data/text/* 2>/dev/null || true
 
   # Using LOB and brown corpus.
+  echo "starting remove_test_utterances_from_lob.py"
   cat data/local/lobcorpus/0167/download/LOB_COCOA/lob.txt | \
     local/remove_test_utterances_from_lob.py data/test/text data/val/text \
                                              > ${dir}/data/text/lob.txt
   cat data/local/browncorpus/brown.txt >> ${dir}/data/text/brown.txt
   cat data/local/wellingtoncorpus/Wellington_annotation_removed.txt >> ${dir}/data/text/wellington.txt
-
   # use the validation data as the dev set.
   # Note: the name 'dev' is treated specially by pocolm, it automatically
   # becomes the dev set.

@@ -29,6 +29,7 @@ fi
 mkdir -p data/{train,test}/data
 
 if [ $stage -le 1 ]; then
+  echo "$0: Obtaining image groups..."
   image/get_image2num_frames.py data/train  # This will be needed for the next command
   # The next command creates a "allowed_lengths.txt" file in data/train
   # which will be used by local/make_features.py to enforce the images to
@@ -57,13 +58,13 @@ if [ $stage -le 3 ]; then
   # This is for training. Use a large vocab size, e.g. 500k to include all the
   # training words:
   local/prepare_dict.sh --vocab-size 500k --dir data/local/dict
-  local/prepare_lang.sh --sil-prob 0.95 \
+  local/prepare_lang.sh --sil-prob 0.9999 \
                         data/local/dict "<unk>" data/lang/temp data/lang
 
   # This is for decoding. We use a 50k lexicon to be consistent with the papers
   # reporting WERs on IAM.
   local/prepare_dict.sh --vocab-size 50k --dir data/local/dict_50k
-  local/prepare_lang.sh --sil-prob 0.95 data/local/dict_50k \
+  local/prepare_lang.sh --sil-prob 0.9999 data/local/dict_50k \
                         "<unk>" data/lang_test/temp data/lang_test
   utils/format_lm.sh data/lang_test data/local/local_lm/data/arpa/3gram_big.arpa.gz \
                      data/local/dict_50k/lexicon.txt data/lang_test
