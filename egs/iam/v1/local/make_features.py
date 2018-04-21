@@ -119,7 +119,7 @@ with open(data_list_path) as f:
         image_id = line_vect[0]
         image_path = line_vect[1]
         im = misc.imread(image_path)
-        im_scaled = get_scaled_image(im, allowed_lengths)
+        im_scaled = get_scaled_image(im)
         im_horizontal_padded = horizontal_pad(im_scaled, allowed_lengths)
         if im_horizontal_padded is None:
             num_fail += 1
