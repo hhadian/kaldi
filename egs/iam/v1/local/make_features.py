@@ -56,18 +56,23 @@ def write_kaldi_matrix(file_handle, matrix, key):
             file_handle.write("\n")
     file_handle.write(" ]\n")
 
-def get_scaled_image(im, allowed_lengths = None):
+
+def get_scaled_image(im):
     scale_size = args.feat_dim
-    sx = im.shape[1]
-    sy = im.shape[0]
+    sx = im.shape[1]  # width
+    sy = im.shape[0]  # height
     scale = (1.0 * scale_size) / sy
     nx = int(scale_size)
     ny = int(scale * sx)
     im = misc.imresize(im, (nx, ny))
+    return im
+
+
+def horizontal_pad(im, allowed_lengths = None):
     if allowed_lengths is None:
         left_padding = right_padding = args.padding
     else:  # Find an allowed length for the image
-        imlen = im.shape[1]
+        imlen = im.shape[1] # width
         allowed_len = 0
         for l in allowed_lengths:
             if l > imlen:
@@ -77,14 +82,15 @@ def get_scaled_image(im, allowed_lengths = None):
             #  No allowed length was found for the image (the image is too long)
             return None
         padding = allowed_len - imlen
-        left_padding = padding // 2
+        left_padding = int(padding // 2)
         right_padding = padding - left_padding
-    dim_y = im.shape[0]
+    dim_y = im.shape[0] # height
     im_pad = np.concatenate((255 * np.ones((dim_y, left_padding),
                                            dtype=int), im), axis=1)
     im_pad1 = np.concatenate((im_pad, 255 * np.ones((dim_y, right_padding),
                                                     dtype=int)), axis=1)
     return im_pad1
+
 
 ### main ###
 data_list_path = os.path.join(args.dir, 'images.scp')
@@ -114,8 +120,8 @@ with open(data_list_path) as f:
         image_path = line_vect[1]
         im = misc.imread(image_path)
         im_scaled = get_scaled_image(im, allowed_lengths)
-
-        if im_scaled is None:
+        im_horizontal_padded = horizontal_pad(im_scaled, allowed_lengths)
+        if im_horizontal_padded is None:
             num_fail += 1
             continue
         data = np.transpose(im_scaled, (1, 0))
@@ -123,5 +129,5 @@ with open(data_list_path) as f:
         num_ok += 1
         write_kaldi_matrix(out_fh, data, image_id)
 
-print('Generated features for {} images. Failed for {} (iamge too '
+print('Generated features for {} images. Failed for {} (image too '
       'long).'.format(num_ok, num_fail), file=sys.stderr)
