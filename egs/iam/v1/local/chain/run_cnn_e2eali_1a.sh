@@ -133,8 +133,8 @@ if [ $stage -le 4 ]; then
 
   num_targets=$(tree-info $tree_dir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
-  cnn_opts="l2-regularize=0.075"
-  tdnn_opts="l2-regularize=0.075"
+  cnn_opts="l2-regularize=0.1"
+  tdnn_opts="l2-regularize=0.1"
   output_opts="l2-regularize=0.1"
   common1="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=36"
   common2="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=70"
@@ -243,3 +243,6 @@ if [ $stage -le 7 ]; then
     --nj $nj --cmd "$cmd" \
     $dir/graph data/test $dir/decode_test || exit 1;
 fi
+
+echo "Done. Date: $(date). Results:"
+local/chain/compare_wer.sh $dir

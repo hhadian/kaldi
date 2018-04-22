@@ -245,3 +245,6 @@ if [ $stage -le 7 ]; then
     --nj $nj --cmd "$cmd" \
     $dir/graph data/test $dir/decode_test || exit 1;
 fi
+
+echo "Done. Date: $(date). Results:"
+local/chain/compare_wer.sh $dir
