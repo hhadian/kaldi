@@ -3,16 +3,17 @@
 # chainali_1c is as chainali_1b except it uses l2-regularize
 # ./local/chain/compare_wer.sh exp/chain/cnn_1a/ exp/chain/cnn_chainali_1c/
 # System                         cnn_1a cnn_chainali_1c
-# WER                             15.17     12.16
-# CER                              7.43      5.35
-# Final train prob              -0.0192   -0.0086
-# Final valid prob              -0.0937   -0.0395
-# Final train prob (xent)       -0.4317   -0.9199
-# Final valid prob (xent)       -0.8371   -1.0001
+# WER                             15.49     11.99
+# CER                              7.64      5.47
+# Final train prob              -0.0249   -0.0137
+# Final valid prob              -0.0914   -0.0417
+# Final train prob (xent)       -0.4517   -0.9111
+# Final valid prob (xent)       -0.8149   -0.9865
 # Parameters                      4.36M     3.96M
 
 #steps/info/chain_dir_info.pl exp/chain/cnn_chainali_1c
-#exp/chain/cnn_chainali_1c: num-iters=21 nj=2..4 num-params=4.0M dim=40->368 combine=-0.015->-0.015 (over 1) xent:train/valid[13,20,final]=(-1.41,-0.941,-0.920/-1.42,-1.01,-1.00) logprob:train/valid[13,20,final]=(-0.050,-0.015,-0.009/-0.066,-0.042,-0.040)
+#exp/chain/cnn_chainali_1c: num-iters=21 nj=2..4 num-params=4.0M dim=40->368 combine=-0.019->-0.019 (over 1) xent:train/valid[13,20,final]=(-3.77,-0.963,-0.911/-3.80,-1.02,-0.986) logprob:train/valid[13,20,final]=(-0.396,-0.021,-0.014/-0.420,-0.045,-0.042)
+
 set -e -o pipefail
 
 stage=0

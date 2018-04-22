@@ -5,12 +5,12 @@
 
 # local/chain/compare_wer.sh exp/chain/e2e_cnn_1a exp/chain/cnn_chainali_1c exp/chain/cnn_e2eali_1a
 # System                      e2e_cnn_1a cnn_chainali_1c cnn_e2eali_1a
-# WER                             12.92     12.16     12.45
-# CER                              5.96      5.35      5.41
-# Final train prob              -0.0389   -0.0086   -0.0540
-# Final valid prob              -0.0810   -0.0395   -0.0746
-# Final train prob (xent)                 -0.9199   -0.8412
-# Final valid prob (xent)                 -1.0001   -0.9964
+# WER                             12.92     11.99     12.45
+# CER                              5.96      5.47      5.41
+# Final train prob              -0.0389   -0.0137   -0.0540
+# Final valid prob              -0.0810   -0.0417   -0.0746
+# Final train prob (xent)                 -0.9111   -0.8412
+# Final valid prob (xent)                 -0.9865   -0.9964
 # Parameters                      9.13M     3.96M     3.96M
 
 # steps/info/chain_dir_info.pl exp/chain/cnn_e2eali_1a
