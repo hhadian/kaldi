@@ -86,9 +86,9 @@ if [ $stage -le 2 ]; then
   echo "$0: creating neural net configs using the xconfig parser";
   num_targets=$(tree-info $treedir/tree | grep num-pdfs | awk '{print $2}')
 
-  cnn_opts="l2-regularize=0.01"
-  tdnn_opts="l2-regularize=0.01"
-  output_opts="l2-regularize=0.01"
+  cnn_opts="l2-regularize=0.075"
+  tdnn_opts="l2-regularize=0.075"
+  output_opts="l2-regularize=0.1"
   common1="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=36"
   common2="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=70"
   common3="$cnn_opts required-time-offsets= height-offsets=-1,0,1 num-filters-out=70"
