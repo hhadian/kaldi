@@ -247,4 +247,4 @@ if [ $stage -le 7 ]; then
 fi
 
 echo "Done. Date: $(date). Results:"
-local/chain/compare_wer.sh $dir
+local/chain/compare_wer.sh $chain_model_dir $dir

@@ -13,6 +13,7 @@
 # Final valid prob (xent)                 -0.9865   -0.9964
 # Parameters                      9.13M     3.96M     3.96M
 
+
 # steps/info/chain_dir_info.pl exp/chain/cnn_e2eali_1a
 # exp/chain/cnn_e2eali_1a: num-iters=21 nj=2..4 num-params=4.0M dim=40->368 combine=-0.056->-0.056 (over 1) xent:train/valid[13,20,final]=(-1.21,-0.846,-0.841/-1.30,-0.988,-0.996) logprob:train/valid[13,20,final]=(-0.079,-0.058,-0.054/-0.092,-0.075,-0.075)
 
@@ -133,8 +134,8 @@ if [ $stage -le 4 ]; then
 
   num_targets=$(tree-info $tree_dir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
-  cnn_opts="l2-regularize=0.075"
-  tdnn_opts="l2-regularize=0.075"
+  cnn_opts="l2-regularize=0.1"
+  tdnn_opts="l2-regularize=0.1"
   output_opts="l2-regularize=0.1"
   common1="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=36"
   common2="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=70"
@@ -245,4 +246,4 @@ if [ $stage -le 7 ]; then
 fi
 
 echo "Done. Date: $(date). Results:"
-local/chain/compare_wer.sh $dir
+local/chain/compare_wer.sh $e2echain_model_dir $dir
