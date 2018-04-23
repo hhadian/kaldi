@@ -4,6 +4,7 @@
 nj=4
 cmd=run.pl
 feat_dim=40
+deslant=true
 echo "$0 $@"
 
 . ./cmd.sh
@@ -26,14 +27,15 @@ for n in $(seq $nj); do
 done
 
 # split images.scp
-echo $split_scps
 utils/split_scp.pl $scp $split_scps || exit 1;
 
-# create a job array of make_features.py
-$cmd JOB=1:$nj $logdir/extract_feature.JOB.log \
-  local/make_features.py $logdir --feat-dim $feat_dim --job JOB \| \
-    copy-feats --compress=true --compression-method=7 \
-    ark:- ark,scp:$featdir/images.JOB.ark,$featdir/images.JOB.scp
+if [ $stage -le 1 ]; then
+  # create a job array of make_features.py
+  $cmd JOB=1:$nj $logdir/extract_features.JOB.log \
+    local/make_features.py $logdir --feat-dim $feat_dim --job JOB \| \
+      copy-feats --compress=true --compression-method=7 \
+      ark:- ark,scp:$featdir/images.JOB.ark,$featdir/images.JOB.scp
+fi
 
 ## aggregates the output scp's to get feats.scp
 for n in $(seq $nj); do
