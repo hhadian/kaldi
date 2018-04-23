@@ -42,11 +42,6 @@ parser.add_argument('--feat-dim', type=int, default=40,
 parser.add_argument('--padding', type=int, default=5,
                     help='Number of white pixels to pad on the left'
                     'and right side of the image.')
-parser.add_argument('--vertical-shift', type=int, default=10,
-                    help='total number of padding pixel per column')
-parser.add_argument('--horizontal-shear', type=int, default=45,
-                    help='maximum horizontal shearing degree')
-
 args = parser.parse_args()
 
 
@@ -204,40 +199,16 @@ def horizontal_shear(im, degree):
         im_pad = im
     shear_matrix = np.array([[1, 0],
                              [np.tan(rad), 1]])
-    # sheared_im = affine_transform(image, shear_matrix, output_shape=(
-    # im.shape[0], im.shape[1] + abs(int(im.shape[0] * np.tan(shear)))), cval=128.0)
     sheared_im = affine_transform(im_pad, shear_matrix, cval=255.0)
     return sheared_im
 
 
-def vertical_shift(im, mode='mid'):
-    total = args.vertical_shift
-    if mode == 'mid':
-        top = int(total // 2)
-        bottom = total - top
-    elif mode == 'top':  # more padding on top
-        top = random.randint(total / 2, total)
-        bottom = total - top
-    elif mode == 'bottom':  # more padding on bottom
-        top = random.randint(0, total / 2)
-        bottom = total - top
-    width = im.shape[1]
-    im_pad = np.concatenate(
-        (255 * np.ones((top, width), dtype=int) -
-         np.random.normal(2, 1, (top, width)).astype(int), im), axis=0)
-    im_pad = np.concatenate(
-        (im_pad, 255 * np.ones((bottom, width), dtype=int) -
-         np.random.normal(2, 1, (bottom, width)).astype(int)), axis=0)
-    return im_pad
-
-
 # main #
 
-random.seed(1)
 
+random.seed(1)
 scp_name = 'images.scp'  # parallel
 data_list_path = os.path.join(args.dir, scp_name)
-# output dir of feature matrix
 if args.out_ark == '-':
     out_fh = sys.stdout
 else:
@@ -271,7 +242,6 @@ with open(data_list_path) as f:
         if im_horizontal_padded is None:
             num_fail += 1
             continue
-        #im_padded = vertical_shift(im_horizontal_padded)
         data = np.transpose(im_horizontal_padded, (1, 0))
         data = np.divide(data, 255.0)
         num_ok += 1
