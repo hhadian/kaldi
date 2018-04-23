@@ -35,24 +35,25 @@ if [ $stage -le 1 ]; then
   # which will be used by local/make_features.py to enforce the images to
   # have allowed lengths. The allowed lengths will be spaced by 10% difference in length.
   image/get_allowed_lengths.py --frame-subsampling-factor 4 10 data/train
+fi
+
+if [ $stage -le 2 ]; then
   echo "$0: Preparing the test and train feature files..."
-  for dataset in train test; do
-    local/make_features.py data/$dataset --feat-dim 40 | \
-      copy-feats --compress=true --compression-method=7 \
-                 ark:- ark,scp:data/$dataset/data/images.ark,data/$dataset/feats.scp
-    steps/compute_cmvn_stats.sh data/$dataset
+  for dataset in test train; do
+    local/extract_feature.sh --nj $nj --cmd $cmd --feat-dim 40 data/$dataset
+    steps/compute_cmvn_stats.sh data/$dataset || exit 1;
   done
   utils/fix_data_dir.sh data/train
 fi
 
-if [ $stage -le 2 ]; then
+if [ $stage -le 3 ]; then
   echo "$0: Estimating a language model for decoding..."
   # We do this stage before dict preparation because prepare_dict.sh
   # generates the lexicon from pocolm's wordlist
   local/train_lm.sh --vocab-size 50k
 fi
 
-if [ $stage -le 3 ]; then
+if [ $stage -le 4 ]; then
   echo "$0: Preparing dictionary and lang..."
 
   # This is for training. Use a large vocab size, e.g. 500k to include all the
@@ -77,19 +78,19 @@ if [ $stage -le 3 ]; then
   cp data/lang_test/G.fst data/lang_unk/G.fst
 fi
 
-if [ $stage -le 4 ]; then
+if [ $stage -le 5 ]; then
   echo "$0: Calling the flat-start chain recipe..."
   local/chain/run_flatstart_cnn1a.sh
 fi
 
-if [ $stage -le 5 ]; then
+if [ $stage -le 6 ]; then
   echo "$0: Aligning the training data using the e2e chain model..."
   steps/nnet3/align.sh --nj 50 --cmd "$cmd" \
                        --scale-opts '--transition-scale=1.0 --self-loop-scale=1.0' \
                        data/train data/lang exp/chain/e2e_cnn_1a exp/chain/e2e_ali_train
 fi
 
-if [ $stage -le 6 ]; then
+if [ $stage -le 7 ]; then
   echo "$0: Building a tree and training a regular chain model using the e2e alignments..."
   local/chain/run_cnn_e2eali_1a.sh
 fi
