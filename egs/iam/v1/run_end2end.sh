@@ -44,7 +44,7 @@ if [ $stage -le 2 ]; then
   done
   utils/fix_data_dir.sh data/train
 fi
-exit 0
+
 if [ $stage -le 3 ]; then
   echo "$0: Estimating a language model for decoding..."
   # We do this stage before dict preparation because prepare_dict.sh
