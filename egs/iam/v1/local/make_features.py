@@ -26,10 +26,11 @@ from scipy import misc
 
 parser = argparse.ArgumentParser(description="""Converts images (in 'dir'/images.scp) to features and
                                                 writes them to standard output in text format.""")
-parser.add_argument('dir', type=str,
-                    help='Source data directory (containing images.scp)')
-parser.add_argument('--job', type=str, default='',
-                    help='JOB number of images.JOB.scp')
+parser.add_argument('images_scp_path', type=str,
+                    help='Path of images.scp file')
+parser.add_argument('--allowed-len-file-path', type=str, default=None,
+                    help='If supplied, each images will be padded to reach the '
+                    'target length (this overrides --padding).')
 parser.add_argument('--out-ark', type=str, default='-',
                     help='Where to write the output feature file')
 parser.add_argument('--feat-dim', type=int, default=40,
@@ -96,9 +97,7 @@ def horizontal_pad(im, allowed_lengths = None):
 
 ### main ###
 
-#data_list_path = os.path.join(args.dir, 'images.scp')
-scp_name = 'images.' + args.job + '.scp'  # parallel
-data_list_path = os.path.join(args.dir, scp_name)
+data_list_path = args.images_scp_path
 
 if args.out_ark == '-':
     out_fh = sys.stdout
@@ -106,10 +105,11 @@ else:
     out_fh = open(args.out_ark,'wb')
 
 allowed_lengths = None
-if os.path.isfile(os.path.join(args.dir, 'allowed_lengths.txt')):
+allowed_len_handle = '/'.join(filter(None, (args.allowed_len_file_path, 'allowed_lengths.txt')))
+if os.path.isfile(allowed_len_handle):
     print("Found 'allowed_lengths.txt' file...", file=sys.stderr)
     allowed_lengths = []
-    with open(os.path.join(args.dir,'allowed_lengths.txt')) as f:
+    with open(allowed_len_handle) as f:
         for line in f:
             allowed_lengths.append(int(line.strip()))
     print("Read {} allowed lengths and will apply them to the "

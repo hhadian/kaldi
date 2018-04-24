@@ -29,10 +29,16 @@ done
 # split images.scp
 utils/split_scp.pl $scp $split_scps || exit 1;
 
-if [ $stage -le 1 ]; then
-  # create a job array of make_features.py
+if $deslant; then
+  echo "$0: Preparing the deslanted test and train feature files..."
   $cmd JOB=1:$nj $logdir/extract_features.JOB.log \
-    local/make_features.py $logdir --feat-dim $feat_dim --job JOB \| \
+    local/make_deslanted_features.py $logdir/images.JOB.scp --feat-dim $feat_dim \| \
+      copy-feats --compress=true --compression-method=7 \
+      ark:- ark,scp:$featdir/images.JOB.ark,$featdir/images.JOB.scp
+else
+  echo "$0: Preparing the test and train feature files..."
+  $cmd JOB=1:$nj $logdir/extract_features.JOB.log \
+    local/make_features.py $logdir/images.JOB.scp --feat-dim $feat_dim \| \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:$featdir/images.JOB.ark,$featdir/images.JOB.scp
 fi

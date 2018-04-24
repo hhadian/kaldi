@@ -38,14 +38,13 @@ if [ $stage -le 1 ]; then
 fi
 
 if [ $stage -le 2 ]; then
-  echo "$0: Preparing the test and train feature files..."
   for dataset in test train; do
     local/extract_features.sh --nj $nj --cmd $cmd --feat-dim 40 data/$dataset
     steps/compute_cmvn_stats.sh data/$dataset || exit 1;
   done
   utils/fix_data_dir.sh data/train
 fi
-
+exit 0
 if [ $stage -le 3 ]; then
   echo "$0: Estimating a language model for decoding..."
   # We do this stage before dict preparation because prepare_dict.sh
