@@ -32,13 +32,11 @@ fi
 mkdir -p data/{train,test}/data
 
 if [ $stage -le 1 ]; then
-  echo "$0: Preparing the test and train feature files..."
-  for dataset in train test; do
-    local/make_features.py data/$dataset --feat-dim 40 | \
-      copy-feats --compress=true --compression-method=7 \
-                 ark:- ark,scp:data/$dataset/data/images.ark,data/$dataset/feats.scp
-    steps/compute_cmvn_stats.sh data/$dataset
+  for dataset in test train; do
+    local/extract_features.sh --nj $nj --cmd $cmd --feat-dim 40 data/$dataset
+    steps/compute_cmvn_stats.sh data/$dataset || exit 1;
   done
+  utils/fix_data_dir.sh data/train
 fi
 
 if [ $stage -le 2 ]; then
