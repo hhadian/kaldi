@@ -1,18 +1,18 @@
 #!/bin/bash
 
 # chainali_1c is as chainali_1b except it uses l2-regularize
-# local/chain/compare_wer.sh exp/chain/cnn_chainali_1b exp/chain/cnn_chainali_1c
-# System                      cnn_chainali_1b cnn_chainali_1c
-# WER                             14.67     12.84
-# CER                              7.31      6.40
-# Final train prob               0.0042   -0.0120
-# Final valid prob              -0.0256   -0.0199
-# Final train prob (xent)       -0.6282   -0.9973
-# Final valid prob (xent)       -0.9096   -1.1537
-# Parameters                      3.96M     3.96M
+# ./local/chain/compare_wer.sh exp/chain/cnn_1a/ exp/chain/cnn_chainali_1c/
+# System                         cnn_1a cnn_chainali_1c
+# WER                             15.49     11.99
+# CER                              7.64      5.47
+# Final train prob              -0.0249   -0.0137
+# Final valid prob              -0.0914   -0.0417
+# Final train prob (xent)       -0.4517   -0.9111
+# Final valid prob (xent)       -0.8149   -0.9865
+# Parameters                      4.36M     3.96M
 
-# steps/info/chain_dir_info.pl exp/chain/cnn_chainali_1c
-# exp/chain/cnn_chainali_1c: num-iters=21 nj=2..4 num-params=4.0M dim=40->369 combine=-0.007->-0.007 (over 1) xent:train/valid[13,20,final]=(-1.44,-1.05,-0.997/-1.53,-1.19,-1.15) logprob:train/valid[13,20,final]=(-0.056,-0.020,-0.012/-0.056,-0.025,-0.020)
+#steps/info/chain_dir_info.pl exp/chain/cnn_chainali_1c
+#exp/chain/cnn_chainali_1c: num-iters=21 nj=2..4 num-params=4.0M dim=40->368 combine=-0.019->-0.019 (over 1) xent:train/valid[13,20,final]=(-3.77,-0.963,-0.911/-3.80,-1.02,-0.986) logprob:train/valid[13,20,final]=(-0.396,-0.021,-0.014/-0.420,-0.045,-0.042)
 
 set -e -o pipefail
 
@@ -245,3 +245,6 @@ if [ $stage -le 7 ]; then
     --nj $nj --cmd "$cmd" \
     $dir/graph data/test $dir/decode_test || exit 1;
 fi
+
+echo "Done. Date: $(date). Results:"
+local/chain/compare_wer.sh $chain_model_dir $dir

@@ -5,17 +5,17 @@
 
 # local/chain/compare_wer.sh exp/chain/e2e_cnn_1a exp/chain/cnn_chainali_1c exp/chain/cnn_e2eali_1a
 # System                      e2e_cnn_1a cnn_chainali_1c cnn_e2eali_1a
-# WER                             14.05     13.14     12.79
-# CER                              6.59      6.40      5.73
-# Final train prob              -0.0349   -0.0260   -0.0556
-# Final valid prob              -0.0595   -0.0451   -0.0795
-# Final train prob (xent)                 -0.9993   -0.9178
-# Final valid prob (xent)                 -1.1549   -1.0604
-# Parameters                      9.13M     3.97M     3.95M
+# WER                             14.32     11.99     12.09
+# CER                              6.78      5.47      5.27
+# Final train prob              -0.0305   -0.0137   -0.0573
+# Final valid prob              -0.1032   -0.0417   -0.0755
+# Final train prob (xent)                 -0.9111   -0.9047
+# Final valid prob (xent)                 -0.9865   -1.0462
+# Parameters                      9.13M     3.96M     3.97M
 
 
 # steps/info/chain_dir_info.pl exp/chain/cnn_e2eali_1a
-# exp/chain/cnn_e2eali_1a: num-iters=21 nj=2..4 num-params=4.0M dim=40->360 combine=-0.056->-0.056 (over 1) xent:train/valid[13,20,final]=(-1.47,-0.978,-0.918/-1.54,-1.10,-1.06) logprob:train/valid[13,20,final]=(-0.106,-0.065,-0.056/-0.113,-0.086,-0.079)
+# exp/chain/cnn_e2eali_1a: num-iters=21 nj=2..4 num-params=4.0M dim=40->368 combine=-0.056->-0.056 (over 1) xent:train/valid[13,20,final]=(-1.21,-0.846,-0.841/-1.30,-0.988,-0.996) logprob:train/valid[13,20,final]=(-0.079,-0.058,-0.054/-0.092,-0.075,-0.075)
 
 set -e -o pipefail
 
@@ -134,8 +134,8 @@ if [ $stage -le 4 ]; then
 
   num_targets=$(tree-info $tree_dir/tree | grep num-pdfs | awk '{print $2}')
   learning_rate_factor=$(echo "print 0.5/$xent_regularize" | python)
-  cnn_opts="l2-regularize=0.075"
-  tdnn_opts="l2-regularize=0.075"
+  cnn_opts="l2-regularize=0.1"
+  tdnn_opts="l2-regularize=0.1"
   output_opts="l2-regularize=0.1"
   common1="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=36"
   common2="$cnn_opts required-time-offsets= height-offsets=-2,-1,0,1,2 num-filters-out=70"
@@ -244,3 +244,6 @@ if [ $stage -le 7 ]; then
     --nj $nj --cmd "$cmd" \
     $dir/graph data/test $dir/decode_test || exit 1;
 fi
+
+echo "Done. Date: $(date). Results:"
+local/chain/compare_wer.sh $e2echain_model_dir $dir

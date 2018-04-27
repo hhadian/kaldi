@@ -5,16 +5,16 @@
 #              2017 Ashish Arora
 
 # steps/info/chain_dir_info.pl exp/chain/cnn_1a/
-# exp/chain/cnn_1a/: num-iters=21 nj=2..4 num-params=4.4M dim=40->364 combine=-0.021->-0.015 xent:train/valid[13,20,final]=(-1.05,-0.701,-0.591/-1.30,-1.08,-1.00) logprob:train/valid[13,20,final]=(-0.061,-0.034,-0.030/-0.107,-0.101,-0.098)
+#exp/chain/cnn_1a/: num-iters=21 nj=2..4 num-params=4.4M dim=40->368 combine=-0.028->-0.028 (over 1) xent:train/valid[13,20,final]=(-0.626,-0.469,-0.452/-0.848,-0.815,-0.815) logprob:train/valid[13,20,final]=(-0.036,-0.026,-0.025/-0.087,-0.092,-0.091)
 
 # local/chain/compare_wer.sh exp/chain/cnn_1a/
 # System                         cnn_1a
-# WER                             18.58
-# CER                             10.17
-# Final train prob              -0.0122
-# Final valid prob              -0.0999
-# Final train prob (xent)       -0.5652
-# Final valid prob (xent)       -0.9758
+# WER                             15.49
+# CER                              7.64
+# Final train prob              -0.0249
+# Final valid prob              -0.0914
+# Final train prob (xent)       -0.4517
+# Final valid prob (xent)       -0.8149
 # Parameters                      4.36M
 
 set -e -o pipefail
@@ -239,3 +239,6 @@ if [ $stage -le 7 ]; then
     --nj $nj --cmd "$cmd" \
     $dir/graph data/test $dir/decode_test || exit 1;
 fi
+
+echo "Done. Date: $(date). Results:"
+local/chain/compare_wer.sh $dir
