@@ -1,5 +1,7 @@
 #!/bin/bash
+
 # Copyright   2017 Yiwen Shao
+#             2018 Ashish Arora
 
 nj=4
 cmd=run.pl
@@ -32,13 +34,17 @@ utils/split_scp.pl $scp $split_scps || exit 1;
 if $deslant; then
   echo "$0: Preparing the deslanted test and train feature files..."
   $cmd JOB=1:$nj $logdir/extract_features.JOB.log \
-    local/make_deslanted_features.py $logdir/images.JOB.scp --feat-dim $feat_dim \| \
+    local/make_deslanted_features.py $logdir/images.JOB.scp \| \
+      --allowed_len_file_path data/train \
+      --feat-dim $feat_dim \| \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:$featdir/images.JOB.ark,$featdir/images.JOB.scp
 else
   echo "$0: Preparing the test and train feature files..."
   $cmd JOB=1:$nj $logdir/extract_features.JOB.log \
-    local/make_features.py $logdir/images.JOB.scp --feat-dim $feat_dim \| \
+    local/make_features.py $logdir/images.JOB.scp \
+      --allowed_len_file_path data/train \
+      --feat-dim $feat_dim \| \
       copy-feats --compress=true --compression-method=7 \
       ark:- ark,scp:$featdir/images.JOB.ark,$featdir/images.JOB.scp
 fi

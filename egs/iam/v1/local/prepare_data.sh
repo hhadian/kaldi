@@ -18,6 +18,7 @@
 
 stage=0
 download_dir=data/download
+process_aachen_split=true
 username=
 password=       # username and password for downloading the IAM database
                 # if you have not already downloaded the database, please
@@ -43,7 +44,6 @@ xml=data/local/xml
 ascii=data/local/ascii
 bcorpus=data/local/browncorpus
 lobcorpus=data/local/lobcorpus
-wcorpus=data/local/wellingtoncorpus
 data_split_info=data/local/largeWriterIndependentTextLineRecognitionTask
 lines_url=http://www.fki.inf.unibe.ch/DBs/iamDB/data/lines/lines.tgz
 xml_url=http://www.fki.inf.unibe.ch/DBs/iamDB/data/xml/xml.tgz
@@ -51,7 +51,6 @@ data_split_info_url=http://www.fki.inf.unibe.ch/DBs/iamDB/tasks/largeWriterIndep
 ascii_url=http://www.fki.inf.unibe.ch/DBs/iamDB/data/ascii/ascii.tgz
 brown_corpus_url=http://www.sls.hawaii.edu/bley-vroman/brown.txt
 lob_corpus_url=http://ota.ox.ac.uk/text/0167.zip
-wellington_corpus_loc=/export/corpora5/Wellington/WWC/
 mkdir -p $download_dir data/local
 
 # download and extact images and transcription
@@ -126,37 +125,6 @@ else
   echo "$0: Done downloading the Brown text corpus"
 fi
 
-if [ -d $wcorpus ]; then
-  echo "$0: Not copying Wellington corpus as it is already there."
-else
-  mkdir -p $wcorpus
-  cp -r $wellington_corpus_loc/. $wcorpus
-
-  # Combine Wellington corpora and replace some of their annotations
-  cat data/local/wellingtoncorpus/Section{A,B,C,D,E,F,G,H,J,K,L}.txt | \
-    cut -d' ' -f3- | sed "s/^[ \t]*//" > data/local/wellingtoncorpus/Wellington_annotated.txt
-
-  cat data/local/wellingtoncorpus/Wellington_annotated.txt | python3 <(
-  cat << EOF
-import sys, io, re;
-from collections import OrderedDict;
-sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding="utf8");
-sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf8");
-dict=OrderedDict([("^",""), ("|",""), ("_",""), ("*0",""), ("*1",""), ("*2",""), ("*3",""), ("*4",""),
-  ("*5",""), ("*6",""), ("*7",""), ("*8",""), ("*9",""), ("*@","°"), ("**=",""), ("*=",""),
-  ("*+$",""), ("$",""), ("*+","£"), ("*-","-"), ("*/","*"), ("*|",""), ("*{","{"), ("*}","}"),
-  ("**#",""), ("*#",""), ("*?",""), ("**\"","\""), ("*\"","\""), ("**'","'"), ("*'","'"),
-  ("*<",""), ("*>",""), ("**[",""), ("**]",""), ("**;",""), ("*;",""), ("**:",""), ("*:",""),
-  ("\\\0",""), ("\\\15",""), ("\\\1",""), ("\\\2",""), ("\\\3",""), ("\\\6",""), ("\\\"",""),
-  ("{0",""), ("{15",""), ("{1",""), ("{2",""), ("{3",""), ("{6","")]);
-pattern = re.compile("|".join(re.escape(key) for key in dict.keys()) + "|[^\\*]\\}");
-dict["}"]="";
-[sys.stdout.write(pattern.sub(lambda x: dict[x.group()[1:]] if re.match('[^\\*]\\}', x.group()) else dict[x.group()], line)) for line in sys.stdin];
-EOF
-) > data/local/wellingtoncorpus/Wellington_annotation_removed.txt
-
-  echo "$0: Done copying Wellington corpus"
-fi
 
 mkdir -p data/{train,test,val}
 file_name=largeWriterIndependentTextLineRecognitionTask
@@ -175,10 +143,28 @@ cat $test_old > $test_new
 cat $val1_old $val2_old > $val_new
 
 if [ $stage -le 0 ]; then
-  local/process_data.py data/local data/train --dataset train || exit 1
-  local/process_data.py data/local data/test --dataset test || exit 1
-  local/process_data.py data/local data/val --dataset validation || exit 1
+
+  if $process_aachen_split; then
+    local/process_data.py data/local data/train --dataset train || exit 1
+    local/process_data.py data/local data/test --dataset test || exit 1
+    local/process_data.py data/local data/val --dataset validation || exit 1
+  else
+    local/process_data_aachen_split.py data/local aachen_split data/train --dataset train_list || exit 1
+    local/process_data_aachen_split.py data/local aachen_split data/test --dataset eval_list || exit 1
+    local/process_data_aachen_split.py data/local aachen_split data/val --dataset dev_list || exit 1
+  fi
+
+  for dataset in train test val; do
+    cp data/$dataset/utt2spk data/$dataset/utt2spk_tmp
+    cp data/$dataset/text data/$dataset/text_tmp
+    cp data/$dataset/images.scp data/$dataset/images_tmp.scp
+    sort data/$dataset/utt2spk_tmp > data/$dataset/utt2spk
+    sort data/$dataset/text_tmp > data/$dataset/text
+    sort data/$dataset/images_tmp.scp > data/$dataset/images.scp
+    rm data/$dataset/utt2spk_tmp data/$dataset/text_tmp data/$dataset/images_tmp.scp
+  done
 
   utils/utt2spk_to_spk2utt.pl data/train/utt2spk > data/train/spk2utt
   utils/utt2spk_to_spk2utt.pl data/test/utt2spk > data/test/spk2utt
+  utils/utt2spk_to_spk2utt.pl data/val/utt2spk > data/val/spk2utt
 fi
