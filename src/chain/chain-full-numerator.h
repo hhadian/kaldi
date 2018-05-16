@@ -73,6 +73,7 @@ class FullNumeratorComputation {
       BaseFloat *tot_logprob,
       CuMatrixBase<BaseFloat> *nnet_output_deriv);
 
+  std::vector<bool>& GetSeqOk() {return seq_ok_;}
  private:
 
   enum { kMaxDerivTimeSteps = 4 };
@@ -124,6 +125,7 @@ class FullNumeratorComputation {
   // the log of tot_prob_.
   Vector<BFloat> tot_log_prob_;
 
+  std::vector<bool> seq_ok_;  // OK per sequence
   bool ok_;
 };
 

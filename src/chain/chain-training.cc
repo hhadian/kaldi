@@ -78,6 +78,9 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
                               CuMatrixBase<BaseFloat> *xent_output_deriv) {
   *weight = supervision.weight * supervision.num_sequences *
       supervision.frames_per_sequence;
+  int ok_count = 0;
+  std::vector<bool> perseq_ok;
+
   BaseFloat num_logprob_weighted;
   if (nnet_output_deriv)
     nnet_output_deriv->SetZero();
@@ -89,12 +92,6 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
     num_logprob_weighted = numerator.Forward();
     if (nnet_output_deriv) {
       numerator.Backward(nnet_output_deriv);
-      if (opts.num_scale != 1.0) {
-        nnet_output_deriv->ApplyPow(opts.num_scale);
-        for (int32 r = 0; r < nnet_output_deriv->NumRows(); r++)
-          nnet_output_deriv->Row(r).Scale(1.0 / nnet_output_deriv->Row(r).Sum());
-          // nnet_output_deriv->ApplySoftMaxPerRow(*nnet_output_deriv);
-      }
       if (xent_output_deriv)
         xent_output_deriv->CopyFromMat(*nnet_output_deriv);
     } else if (xent_output_deriv) {
@@ -122,14 +119,45 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
 
     if (!opts.viterbi) {
       num_logprob_weighted = fnum.Forward();
+      perseq_ok = fnum.GetSeqOk();
+      for (int s = 0; s < supervision.num_sequences; s++)
+        if (perseq_ok[s]) ok_count++;
+      KALDI_LOG << "Forward OK count: " << ok_count;
+      *weight = supervision.weight * ok_count *
+          supervision.frames_per_sequence;
       KALDI_LOG << "Doing Forward-Backward. Num Logprob: "
                 << num_logprob_weighted / (*weight);
-      num_ok = (num_logprob_weighted - num_logprob_weighted == 0);
+      num_ok = (num_logprob_weighted - num_logprob_weighted == 0);   // this should be false iff all perseq OKs are false
       KALDI_LOG << "Num Forward "<< (num_ok ? "succeeded" : "failed") <<".";
       if (nnet_output_deriv && num_ok) {
         num_ok = fnum.Backward(supervision.weight, nnet_output_deriv);
-        KALDI_LOG << "Num Backward " << (num_ok ? "succeeded" : "failed")
+        perseq_ok = fnum.GetSeqOk();
+        ok_count = 0;
+        for (int s = 0; s < supervision.num_sequences; s++)
+          if (perseq_ok[s]) ok_count++;
+        KALDI_LOG << "Backward OK count: " << ok_count;
+        *weight = supervision.weight * ok_count *
+            supervision.frames_per_sequence;
+        KALDI_LOG << "Num Backward " << (ok_count>0 ? "succeeded" : "failed")
+                  << " (num-ok: " << (num_ok ? "true" : "false") << ")"
                   << " (dbl-chk: " << (opts.check_derivs ? "true" : "false") << ").";
+        num_ok = ok_count > 0;
+        if (opts.num_scale != 1.0) {
+          KALDI_LOG << "Scaling the numerator probs by " << opts.num_scale << ".";
+          //nnet_output_deriv->ApplyPow(opts.num_scale);
+          for (int32 r = 0; r < nnet_output_deriv->NumRows(); r++) {
+            //KALDI_LOG << "Sum r=" << r << " is " << nnet_output_deriv->Row(r).Sum();
+            BaseFloat sum = nnet_output_deriv->Row(r).Sum();
+            if (sum == 1.0) {
+              nnet_output_deriv->Row(r).ApplyPow(opts.num_scale);
+              BaseFloat sum = nnet_output_deriv->Row(r).Sum();
+              KALDI_ASSERT(sum - sum == 0.0);
+              nnet_output_deriv->Row(r).Scale(1.0 / sum);
+            }
+            //            KALDI_LOG << "Sum r=" << r << " is " << nnet_output_deriv->Row(r).Sum();
+          }
+          // nnet_output_deriv->ApplySoftMaxPerRow(*nnet_output_deriv);
+        }
       }
     } else {
       KALDI_LOG << "Doing Viterbi...";
@@ -184,7 +212,7 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
   if (!opts.disable_mmi && num_ok) {
     DenominatorComputation denominator(opts, den_graph,
                                        supervision.num_sequences,
-                                       nnet_output);
+                                       nnet_output, perseq_ok);
 
     den_logprob = denominator.Forward();
     KALDI_LOG << "Den Logprob: "
@@ -244,6 +272,15 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
     *l2_term = -0.5 * scale * TraceMatMat(nnet_output, nnet_output, kTrans);
     if (nnet_output_deriv)
       nnet_output_deriv->AddMat(-1.0 * scale, nnet_output);
+  }
+
+  if (ok_count < supervision.num_sequences && nnet_output_deriv) {
+    KALDI_LOG << "some failures. zeroing out failed seqs...";
+    for (int32 s = 0; s < supervision.num_sequences; s++) {
+      if(!perseq_ok[s])
+        for (int32 t = 0; t < supervision.frames_per_sequence; t++)
+          nnet_output_deriv->Row(t * supervision.num_sequences + s).SetZero();
+    }
   }
 }
 

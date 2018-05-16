@@ -77,13 +77,15 @@ struct ChainTrainingOptions {
   std::vector<int32> pdf_map;
 
   bool  offset_first_transitions;
+  int32 prune;
+  BaseFloat prune_beam;
   ChainTrainingOptions(): l2_regularize(0.0), leaky_hmm_coefficient(1.0e-05),
                           xent_regularize(0.0), disable_mmi(false),
                           equal_align(true), den_use_initials (true),
                           den_use_finals (false), viterbi(false),
                           check_derivs(false), max_dur(0), num_scale(1.0),
                           min_transition_prob(0.0),
-                          offset_first_transitions(false) { }
+                          offset_first_transitions(false), prune(0) { }
 
   void Register(OptionsItf *opts) {
     opts->Register("l2-regularize", &l2_regularize, "l2 regularization "
@@ -113,6 +115,8 @@ struct ChainTrainingOptions {
     opts->Register("min-transition-prob", &min_transition_prob, "Minimum transition prob for when transition probs are used");
     opts->Register("pdf-map-filename", &pdf_map_filename, "Path to a pdf map file -- for #pdf_tying");
     opts->Register("offset-first-transitions", &offset_first_transitions, "Offset first transitions in num computation");
+    opts->Register("prune", &prune, "if >=1 do pruned forward-backward");
+    opts->Register("prune-beam", &prune_beam, "pruned forward-backward beam");
   }
 };
 

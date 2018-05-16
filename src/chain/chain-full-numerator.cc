@@ -49,6 +49,7 @@ FullNumeratorComputation::FullNumeratorComputation(
     tot_log_prob_(num_sequences_, kUndefined),
     ok_(true) {
 
+  seq_ok_.resize(num_sequences_, true);
   if (opts_.viterbi) {
     using std::vector;
     alpha_.Resize(0, 0);
@@ -240,6 +241,7 @@ void FullNumeratorComputation::AlphaGeneralFrame(int32 t) {
 
   int32 prob_stride = probs.Stride();
   for (int32 s = 0; s < num_sequences; s++) {
+    BFloat max_alpha = 0.0;
     BFloat inv_arbitrary_scale =
         prev_alpha[max_num_hmm_states * num_sequences + s];  //#SCC#
     for (int32 h = 0; h < num_graph_.NumStates()[s]; h++) {
@@ -277,14 +279,49 @@ void FullNumeratorComputation::AlphaGeneralFrame(int32 t) {
       // on.
       //KALDI_ASSERT(this_tot_alpha - this_tot_alpha == 0);
       this_alpha[h * num_sequences + s] = this_tot_alpha ;//* arbitrary_scale; //#SCC#
+      if (this_tot_alpha > max_alpha)
+        max_alpha = this_tot_alpha;
+    }  // state h
+
+    if (opts_.prune <= 0)
+      continue;
+    if (max_alpha == 0.0 || max_alpha - max_alpha != 0.0) {
+      KALDI_LOG << "Bad max-alpha for seq " << s << " at time " << t << ": "
+                << max_alpha;
+      continue;
     }
-  }
+    KALDI_VLOG(2) << "Seq[" << s << "]@" << t << "  -->  max-alpha: " << max_alpha << ", num-states: " << num_graph_.NumStates()[s];
+    /// Prune
+    BFloat max_alpha_log = Log(max_alpha);
+    int32 npruned = 0;
+    BFloat totpruned = 0.0;
+    BFloat totnonpruned = 0.0;
+    const Int32Pair *forward_transitions = num_graph_.ForwardTransitions();
+    for (int32 h = 0; h < num_graph_.NumStates()[s]; h++) {
+      if (Log(this_alpha[h * num_sequences + s]) + opts_.prune_beam < max_alpha_log) {
+        npruned++;
+        totpruned += this_alpha[h * num_sequences + s];
+        // prune it
+        if (opts_.prune == 1) {  // first method of pruning  -- not possibe --> we have different sequences sharing the same obs matrix
+          // zero out all observations at time t for start-state = h
+        } else if (opts_.prune == 2 || opts_.prune == 3) {  // do forward-pruning
+          this_alpha[h * num_sequences + s] = 0.0;
+        }
+      } else {
+        totnonpruned += this_alpha[h * num_sequences + s];
+      }
+    }
+    KALDI_VLOG(1) << "Seq[" << s << "]@" << t << "  -->  pruned " << npruned
+                  << " states with tot-prob: " << totpruned
+                  << " remaining states: " << num_graph_.NumStates()[s] - npruned
+                  << " and tot-unpruned-prob: " << totnonpruned;
+  }   // seq s
 
   // Now compute alpha-sums for frame t:
   SubMatrix<BFloat> alpha_mat(this_alpha,
-                                 num_graph_.MaxNumStates(),
-                                 num_sequences_,
-                                 num_sequences_);
+                              num_graph_.MaxNumStates(),
+                              num_sequences_,
+                              num_sequences_);
   if (t == frames_per_sequence_) {// last alpha
     Matrix<BFloat> dd(num_graph_.FinalProbs());
     alpha_mat.MulElements(dd);
@@ -345,26 +382,21 @@ BaseFloat FullNumeratorComputation::ComputeTotLogLike() {
       num_sequences_,
       num_sequences_);
 
-// TODO(hhadian): last frame alpha should be multiplied with fianl prob of states before being summed-over to give us tot-prob
-
 
   tot_prob_.AddRowSumMat(1.0, last_alpha, 0.0);
+  if (tot_prob_.Sum() == 0.0) {  /// no token has reached the final states (it can happen when pruning is enabled)
+    std::fill(seq_ok_.begin(), seq_ok_.end(), false);
+    return -std::numeric_limits<BaseFloat>::infinity();
+  }
+
   // we should probably add an ApplyLog() function that takes a vector argument.
   tot_log_prob_ = tot_prob_;
   tot_log_prob_.ApplyLog();
   if (num_graph_.AreFirstTransitionsScaled())
     tot_log_prob_.AddVec(1.0, num_graph_.FirstTransitionOffsets());
-  BFloat tot_log_prob = tot_log_prob_.Sum();
 
-  // We now have to add something for the arbitrary scaling factor.  [note: the
-  // purpose of the arbitrary scaling factors was to keep things in a good
-  // floating-point range]
-  // The inverses of all the tot-alpha quantities, for t = 0
-  // ... frames_per_sequence_ - 1, were included as the 'arbitrary factors' in
-  // the transition-probs, so we need to multiply them all together (not
-  // inversed) and add them as a correction term to the total log-likes.
-  // These tot-alpha quantities were stored in the same place that we would
-  // have stored the HMM-state numbered 'max_num_hmm_states'.
+  // BFloat tot_log_prob = tot_log_prob_.Sum();
+
   int32 max_num_hmm_states = num_graph_.MaxNumStates();
   SubMatrix<BFloat> inv_arbitrary_scales(
       alpha_, 0, frames_per_sequence_,
@@ -372,9 +404,23 @@ BaseFloat FullNumeratorComputation::ComputeTotLogLike() {
   Matrix<BFloat> log_inv_arbitrary_scales(
       inv_arbitrary_scales);
   log_inv_arbitrary_scales.ApplyLog();
-  BFloat log_inv_arbitrary_scales_product =
-      log_inv_arbitrary_scales.Sum();
-  return tot_log_prob + log_inv_arbitrary_scales_product;
+
+
+  //  BFloat log_inv_arbitrary_scales_product =
+  //      log_inv_arbitrary_scales.Sum();
+  Vector<BFloat> totscales_vect(num_sequences_);
+  totscales_vect.AddRowSumMat(1.0, log_inv_arbitrary_scales, 0.0);
+  BFloat tot_log_prob = 0.0;
+  for (int32 i = 0; i < num_sequences_; i++) {
+    tot_log_prob_(i) += totscales_vect(i);
+    if (tot_log_prob_(i) - tot_log_prob_(i) == 0.0)
+      tot_log_prob += tot_log_prob_(i);
+    else
+      seq_ok_[i] = false;
+  }
+
+    //  return tot_log_prob + log_inv_arbitrary_scales_product;
+  return tot_log_prob;
 }
 
 
@@ -385,6 +431,26 @@ bool FullNumeratorComputation::Backward(
   BetaLastFrame();
   for (int32 t = frames_per_sequence_ - 1; t >= 0; t--) {
     BetaGeneralFrame(t);
+    // if pruning is enabled we need to normalize the occupation probs:
+    if (opts_.prune == 2 || opts_.prune == 3) {
+      KALDI_VLOG(2) << "Time: " << t << ". Normalizing...";
+      int32 t_wrapped = t % static_cast<int32>(kMaxDerivTimeSteps),
+          num_pdfs = exp_nnet_output_transposed_.NumRows();
+      SubMatrix<BaseFloat>   this_log_prob_deriv(nnet_output_deriv_transposed_, 0, num_pdfs,
+                                                 t_wrapped * num_sequences_, num_sequences_);
+      Matrix<BaseFloat> this_log_prob_deriv_trans(this_log_prob_deriv, kTrans);
+      for (int32 seq = 0; seq < num_sequences_; seq++) {
+        BFloat sum = this_log_prob_deriv_trans.Row(seq).Sum();
+        KALDI_VLOG(2) << "\t Seq[" << seq << "] --> sum: " << sum << ", seq-ok: " << seq_ok_[seq];
+        if (sum - sum == 0.0 && seq_ok_[seq]) {  // F-B has been successful for this sequence
+          this_log_prob_deriv_trans.Row(seq).Scale(1.0 / sum);
+        } else {
+          seq_ok_[seq] = false;
+        }
+      }
+      this_log_prob_deriv.CopyFromMat(this_log_prob_deriv_trans, kTrans);
+    }
+
     if (GetVerboseLevel() >= 1 || t == 0 || (t == frames_per_sequence_ - 1 && opts_.check_derivs))
       BetaGeneralFrameDebug(t);
     if (t % kMaxDerivTimeSteps == 0) {
@@ -409,6 +475,7 @@ bool FullNumeratorComputation::Backward(
   }
 //  nnet_output_deriv->AddMat(
 //                           deriv_weight, nnet_output_deriv_transposed_, kTrans);
+
   return ok_;
 }
 
@@ -548,39 +615,60 @@ void FullNumeratorComputation::BetaGeneralFrame(int32 t) {
 }
 
 void FullNumeratorComputation::BetaGeneralFrameDebug(int32 t) {
-  int32 max_num_hmm_states = num_graph_.MaxNumStates(),
-      alpha_beta_size = max_num_hmm_states * num_sequences_;
-  SubVector<BFloat> this_alpha(alpha_.RowData(t), alpha_beta_size),
-      this_beta(beta_.RowData(t % 2), alpha_beta_size);
+  int32 max_num_hmm_states = num_graph_.MaxNumStates();
+  SubMatrix<BFloat> this_alpha(
+      alpha_.RowData(t),
+      max_num_hmm_states,
+      num_sequences_,
+      num_sequences_);
+  SubMatrix<BFloat> this_beta(
+      beta_.RowData(t % 2),
+      max_num_hmm_states,
+      num_sequences_,
+      num_sequences_);
+  Matrix<BFloat> alphabeta(this_alpha);
+  alphabeta.MulElements(this_beta);
+  Vector<BFloat> alphabeta_sums(num_sequences_);
+  alphabeta_sums.AddRowSumMat(1.0, alphabeta, 0.0);
+
   int32 t_wrapped = t % static_cast<int32>(kMaxDerivTimeSteps),
         num_pdfs = exp_nnet_output_transposed_.NumRows();
-  SubMatrix<BaseFloat> this_log_prob_deriv(
+  SubMatrix<BaseFloat> this_occup_probs(
       nnet_output_deriv_transposed_, 0, num_pdfs,
       t_wrapped * num_sequences_, num_sequences_);
-  BFloat alpha_beta_product = VecVec(this_alpha,
-                                        this_beta),
-      this_log_prob_deriv_sum = this_log_prob_deriv.Sum();
-  if (!ApproxEqual(alpha_beta_product, num_sequences_)) {
-    KALDI_WARN << "On time " << t << ", alpha-beta product "
-               << alpha_beta_product << " != " << num_sequences_
-               << " alpha-sum = " << this_alpha.Sum()
-               << ", beta-sum = " << this_beta.Sum();
-    if (fabs(alpha_beta_product - num_sequences_) > 2.0 || alpha_beta_product - alpha_beta_product != 0) {
-      KALDI_WARN << "Excessive error detected, will abandon this minibatch";
-      ok_ = false;
-    }
+
+  Vector<BaseFloat> occup_probs_sum(num_sequences_);
+  occup_probs_sum.AddRowSumMat(1.0, this_occup_probs, 0.0);
+
+  if (!(opts_.prune == 2 || opts_.prune == 3)) {  // in these two cases of pruning, these won't hold!
+    // do the cheks on a per-sequence basis
+    for (int32 seq = 0; seq < num_sequences_; seq++)
+      if (!ApproxEqual(alphabeta_sums(seq), 1.0)) {
+        KALDI_WARN << "On time " << t
+                   << " for seq" << seq << ", alpha-beta product "
+                   << alphabeta_sums(seq) << " != 1.0";
+        if (fabs(alphabeta_sums(seq) - 1.0) > 0.05 || alphabeta_sums(seq) - alphabeta_sums(seq) != 0) {
+          KALDI_WARN << "Excessive error detected, will abandon seq " << seq;
+          ok_ = false;
+          seq_ok_[seq] = false;
+        }
+      }
   }
   // use higher tolerance, since we are using randomized pruning for the
   // log-prob derivatives.
-  if (!ApproxEqual(this_log_prob_deriv_sum,
-                   num_sequences_, 0.01)) {
-    KALDI_WARN << "On time " << t << ", log-prob-deriv sum "
-               << this_log_prob_deriv_sum << " != " << num_sequences_;
-    if (fabs(this_log_prob_deriv_sum - num_sequences_) > 2.0 || this_log_prob_deriv_sum - this_log_prob_deriv_sum != 0) {
-      KALDI_WARN << "Excessive error detected, will abandon this minibatch";
-      ok_ = false;
+  for (int32 seq = 0; seq < num_sequences_; seq++) {
+    BFloat osum = occup_probs_sum(seq);
+    if (!ApproxEqual(osum, 1.0, 0.01) && seq_ok_[seq]) {
+      KALDI_WARN << "On time " << t << " for seq" << seq << ", log-prob-deriv sum "
+                 << osum << " != " << 1.0;
+      if (fabs(osum - 1.0) > 0.05 || osum - osum != 0) {
+        KALDI_WARN << "Excessive error detected, will abandon seq " << seq;
+        ok_ = false;
+        seq_ok_[seq] = false;
+      }
     }
   }
+
 }
 
 
