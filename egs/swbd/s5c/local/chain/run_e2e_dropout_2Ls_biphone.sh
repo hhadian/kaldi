@@ -64,6 +64,8 @@ cmd=queue.pl
 use_final_stddev=false
 max_dur_opts=
 num_scale=1.0
+input_dim=40
+test_sets="train_dev eval2000"
 
 # End configuration section.
 echo "$0 $@"  # Print the command line for logging
@@ -96,7 +98,6 @@ treedir=exp/chain/e2e${base_lang_affix}_bitree${tree_affix}_topo${topo_affix}
 dir=exp/chain/e2e${drop_affix}biphone${base_lang_affix}${affix}${topo_affix}${tree_affix}
 echo "Run $rid, dir = $dir" >> biphone_runs.log
 
-input_dim=40
 if $add_deltas; then
   input_dim=120
 fi
@@ -252,7 +253,7 @@ if [ $stage -le 15 ]; then
   if [ "$n_tie" != "0" ]; then
     tie_opts="--pdf-map-filename=$dir/pdf-map.txt"
   fi
-  for decode_set in train_dev eval2000; do
+  for decode_set in $test_sets; do
       (
       rm -r $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_${decode_suff} || true
       steps/nnet3/decode.sh --acwt $acwt --post-decode-acwt $post_acwt --lattice-beam $lat_beam --beam $beam \

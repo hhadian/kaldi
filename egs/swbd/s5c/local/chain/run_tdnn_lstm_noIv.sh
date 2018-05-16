@@ -237,21 +237,21 @@ fi
 
 if [ $stage -le 15 ]; then
   rm $dir/.error 2>/dev/null || true
-  for decode_set in train_dev eval2000; do
+  for decode_set in transcribeme_test_cleaned; do
       (
         steps/nnet3/decode.sh --num-threads 4 \
           --acwt 1.0 --post-decode-acwt 10.0 \
-          --nj 25 --cmd "$decode_cmd" $iter_opts \
+          --nj 40 --cmd "$decode_cmd" $iter_opts \
           --extra-left-context $extra_left_context  \
           --extra-right-context $extra_right_context  \
           --extra-left-context-initial 0 \
           --extra-right-context-final 0 \
           --frames-per-chunk "$frames_per_chunk_primary" \
-         $graph_dir data/${decode_set}_hires \
+         $graph_dir data/${decode_set} \
          $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_tg || exit 1;
       if $has_fisher; then
           steps/lmrescore_const_arpa.sh --cmd "$decode_cmd" \
-            data/lang_sw1_{tg,fsh_fg} data/${decode_set}_hires \
+            data/lang_sw1_{tg,fsh_fg} data/${decode_set} \
             $dir/decode_${decode_set}${decode_iter:+_$decode_iter}_sw1_{tg,fsh_fg} || exit 1;
       fi
       ) &
