@@ -1,8 +1,10 @@
 // nnet3/nnet-simple-component.cc
 
 // Copyright      2015  Johns Hopkins University (author: Daniel Povey)
+//                2015  Xiaohui Zhang
 //                2015  Guoguo Chen
 //                2015  Daniel Galvez
+//                2016  Yiming Wang
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -642,11 +644,13 @@ void ClipGradientComponent::Backprop(const std::string &debug_info,
       to_update->num_backpropped_ += 1;
       RepairGradients(debug_info, in_value, in_deriv, to_update);
     }
+  } else if (clipping_threshold_ == 0.0) {
+    in_deriv->SetZero();
   }
 }
 
 // This function will add a self-repair term to in-deriv, attempting to shrink
-// the maginitude of the input towards self_repair_target_.
+// the magnitude of the input towards self_repair_target_.
 // This term is proportional to [-(input vector - self_repair_target_)].
 // The avarage magnitude of this term is equal to
 // [self_repair_scale_ * clipped_proportion * average norm of input derivative].
@@ -2699,6 +2703,7 @@ void NaturalGradientAffineComponent::Read(std::istream &is, bool binary) {
   preconditioner_out_.SetAlpha(alpha);
   preconditioner_in_.SetRank(rank_in);
   preconditioner_out_.SetRank(rank_out);
+  preconditioner_in_.SetUpdatePeriod(update_period);
   preconditioner_out_.SetUpdatePeriod(update_period);
 
   if (PeekToken(is, binary) == 'M') {
@@ -2812,6 +2817,7 @@ void NaturalGradientAffineComponent::InitFromConfig(ConfigLine *cfl) {
   preconditioner_out_.SetAlpha(alpha);
   preconditioner_in_.SetRank(rank_in);
   preconditioner_out_.SetRank(rank_out);
+  preconditioner_in_.SetUpdatePeriod(update_period);
   preconditioner_out_.SetUpdatePeriod(update_period);
 
   if (cfl->HasUnusedValues())
@@ -3724,15 +3730,11 @@ void NaturalGradientPerElementScaleComponent::InitFromConfig(ConfigLine *cfl) {
                    // for the preconditioner actually exceeds the memory for the
                    // parameters (by "rank").
       update_period = 10;
-  BaseFloat num_samples_history = 2000.0, alpha = 4.0,
-      max_change_per_minibatch = 0.0;
+  BaseFloat num_samples_history = 2000.0, alpha = 4.0;
   cfl->GetValue("rank", &rank);
   cfl->GetValue("update-period", &update_period);
   cfl->GetValue("num-samples-history", &num_samples_history);
   cfl->GetValue("alpha", &alpha);
-  cfl->GetValue("max-change-per-minibatch", &max_change_per_minibatch);
-  if (max_change_per_minibatch != 0.0)
-    KALDI_WARN << "max-change-per-minibatch is now ignored, use 'max-change'";
   InitLearningRatesFromConfig(cfl);
   std::string filename;
   // Accepts "scales" config (for filename) or "dim" -> random init, for testing.

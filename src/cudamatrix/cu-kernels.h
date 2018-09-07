@@ -221,19 +221,29 @@ inline void cuda_add_rows(dim3 Gr, dim3 Bl, double alpha, double* dst,
                           const double* const * src, MatrixDim dst_dim) {
   cudaD_add_rows_direct(Gr, Bl, alpha, dst, src, dst_dim);
 }
+inline void cuda_add_rows(dim3 Gr, dim3 Bl, float alpha, float* dst,
+                          const float* const * src, MatrixDim dst_dim) {
+  cudaF_add_rows_direct(Gr, Bl, alpha, dst, src, dst_dim);
+}
 inline void cuda_add_rows(dim3 Gr, dim3 Bl, double alpha, double* dst,
                           const double* src, const MatrixIndexT_cuda* reorder,
                           MatrixDim dst_dim, int src_stride) {
   cudaD_add_rows(Gr, Bl, alpha, dst, src, reorder, dst_dim, src_stride);
 }
 inline void cuda_add_rows(dim3 Gr, dim3 Bl, float alpha, float* dst,
-                          const float* const * src, MatrixDim dst_dim) {
-  cudaF_add_rows_direct(Gr, Bl, alpha, dst, src, dst_dim);
-}
-inline void cuda_add_rows(dim3 Gr, dim3 Bl, float alpha, float* dst,
                           const float* src, const MatrixIndexT_cuda* reorder,
                           MatrixDim dst_dim, int src_stride) {
   cudaF_add_rows(Gr, Bl, alpha, dst, src, reorder, dst_dim, src_stride);
+}
+inline void cuda_mul_rows(dim3 Gr, dim3 Bl, double* dst,
+                          const double* src, const MatrixIndexT_cuda* reorder,
+                          MatrixDim dst_dim, int src_stride) {
+  cudaD_mul_rows(Gr, Bl, dst, src, reorder, dst_dim, src_stride);
+}
+inline void cuda_mul_rows(dim3 Gr, dim3 Bl, float* dst,
+                          const float* src, const MatrixIndexT_cuda* reorder,
+                          MatrixDim dst_dim, int src_stride) {
+  cudaF_mul_rows(Gr, Bl, dst, src, reorder, dst_dim, src_stride);
 }
 inline void cuda_add_smat(dim3 Gr, dim3 Bl, double* mat, MatrixDim mat_dim,
                           double alpha, const int* smat_row_ptr,
@@ -334,6 +344,14 @@ inline void cuda_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) {
 }
 inline void cuda_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) {
   cudaF_apply_exp(Gr, Bl, mat, d);
+}
+inline void cuda_apply_exp_limited(dim3 Gr, dim3 Bl, double* mat, MatrixDim d,
+                                   double lower_limit, double upper_limit) {
+  cudaD_apply_exp_limited(Gr, Bl, mat, d, lower_limit, upper_limit);
+}
+inline void cuda_apply_exp_limited(dim3 Gr, dim3 Bl, float* mat, MatrixDim d,
+                                   float lower_limit, float upper_limit) {
+  cudaF_apply_exp_limited(Gr, Bl, mat, d, lower_limit, upper_limit);
 }
 inline void cuda_apply_exp_special(dim3 Gr, dim3 Bl, double* out,
                                    MatrixDim out_dim, const double* in,

@@ -402,6 +402,26 @@ static void _apply_exp(Real* mat, MatrixDim d) {
 
 template<typename Real>
 __global__
+static void _apply_exp_limited(Real* mat, MatrixDim d,
+                               Real lower_limit, Real upper_limit) {
+  int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+  int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+  int32_cuda index = i + j * d.stride;
+  if (i < d.cols && j < d.rows) {
+    Real x = mat[index];
+    // I'm writing !(x >= lower_limit) instead of (x < lower_limit) so that
+    // nan's will be set to the lower-limit.
+    if (!(x >= lower_limit))
+      x = lower_limit;
+    else if (x > upper_limit)
+      x = upper_limit;
+    mat[index] = exp(x);
+  }
+}
+
+
+template<typename Real>
+__global__
 static void _scale_diag_packed(Real* mat, Real value, int dim) {
   int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
   int32_cuda index = ((i + 1) * (i + 2) / 2) - 1;
@@ -1983,6 +2003,23 @@ static void _add_rows(Real alpha, Real* dst, const Real *src,
     }
   }
 }
+
+template<typename Real>
+__global__
+static void _mul_rows(Real* dst, const Real *src,
+                      const MatrixIndexT_cuda* reorder, MatrixDim dst_dim,
+                      int src_stride) {
+  int i = blockIdx.x * blockDim.x + threadIdx.x;  // col index
+  int j = blockIdx.y * blockDim.y + threadIdx.y;  // row index
+  if (i < dst_dim.cols && j < dst_dim.rows) {
+    int dst_index = j * dst_dim.stride + i;
+    if (reorder[j] >= 0) {
+      int src_index = reorder[j] * src_stride + i;
+      dst[dst_index] *= src[src_index];
+    }
+  }
+}
+
 
 template<typename Real>
 __global__
@@ -3717,6 +3754,11 @@ void cudaF_apply_exp(dim3 Gr, dim3 Bl, float* mat, MatrixDim d) {
   _apply_exp<<<Gr,Bl>>>(mat,d);
 }
 
+void cudaF_apply_exp_limited(dim3 Gr, dim3 Bl, float* mat, MatrixDim d,
+                             float lower_limit, float upper_limit) {
+  _apply_exp_limited<<<Gr,Bl>>>(mat, d, lower_limit, upper_limit);
+}
+
 void cudaF_apply_pow(dim3 Gr, dim3 Bl, float* mat, float power, MatrixDim d) {
   _apply_pow<<<Gr,Bl>>>(mat, power, d);
 }
@@ -3762,6 +3804,12 @@ void cudaF_add_rows(dim3 Gr, dim3 Bl, float alpha, float* dst, const float* src,
                     const MatrixIndexT_cuda* reorder, MatrixDim dst_dim,
                     int src_stride) {
   _add_rows<<<Gr,Bl>>>(alpha, dst, src, reorder, dst_dim, src_stride);
+}
+
+void cudaF_mul_rows(dim3 Gr, dim3 Bl, float* dst, const float* src,
+                    const MatrixIndexT_cuda* reorder, MatrixDim dst_dim,
+                    int src_stride) {
+  _mul_rows<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
 }
 
 void cudaF_add_rows_direct(dim3 Gr, dim3 Bl, float alpha, float* dst,
@@ -4407,6 +4455,13 @@ void cudaD_apply_exp(dim3 Gr, dim3 Bl, double* mat, MatrixDim d) {
   _apply_exp<<<Gr,Bl>>>(mat,d);
 }
 
+void cudaD_apply_exp_limited(dim3 Gr, dim3 Bl, double* mat, MatrixDim d,
+                             double lower_limit, double upper_limit) {
+  _apply_exp_limited<<<Gr,Bl>>>(mat, d, lower_limit, upper_limit);
+}
+
+
+
 void cudaD_apply_pow(dim3 Gr, dim3 Bl, double* mat, double power, MatrixDim d) {
   _apply_pow<<<Gr,Bl>>>(mat, power, d);
 }
@@ -4452,6 +4507,12 @@ void cudaD_add_rows(dim3 Gr, dim3 Bl, double alpha, double* dst,
                     const double* src, const MatrixIndexT_cuda* reorder,
                     MatrixDim dst_dim, int src_stride) {
   _add_rows<<<Gr,Bl>>>(alpha, dst, src, reorder, dst_dim, src_stride);
+}
+
+void cudaD_mul_rows(dim3 Gr, dim3 Bl, double* dst,
+                    const double* src, const MatrixIndexT_cuda* reorder,
+                    MatrixDim dst_dim, int src_stride) {
+  _mul_rows<<<Gr,Bl>>>(dst, src, reorder, dst_dim, src_stride);
 }
 
 void cudaD_add_rows_direct(dim3 Gr, dim3 Bl, double alpha, double* dst,

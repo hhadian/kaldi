@@ -62,7 +62,7 @@ void NnetTrainer::Train(const NnetExample &eg) {
   GetComputationRequest(*nnet_, eg, need_model_derivative,
                         config_.store_component_stats,
                         &request);
-  const NnetComputation *computation = compiler_.Compile(request);
+  std::shared_ptr<const NnetComputation> computation = compiler_.Compile(request);
 
   if (config_.backstitch_training_scale > 0.0 &&
       num_minibatches_processed_ % config_.backstitch_training_interval ==
@@ -90,7 +90,7 @@ void NnetTrainer::TrainInternal(const NnetExample &eg,
                                 const NnetComputation &computation) {
   // note: because we give the 1st arg (nnet_) as a pointer to the
   // constructor of 'computer', it will use that copy of the nnet to
-  // store stats.  This is mainly important for memory-norm.
+  // store stats.
   NnetComputer computer(config_.compute_config, computation,
                         nnet_, delta_nnet_);
   // give the inputs to the computer object.
@@ -131,7 +131,7 @@ void NnetTrainer::TrainInternalBackstitch(const NnetExample &eg,
                                           bool is_backstitch_step1) {
   // note: because we give the 1st arg (nnet_) as a pointer to the
   // constructor of 'computer', it will use that copy of the nnet to
-  // store stats.  This is mainly important for memory-norm.
+  // store stats.
   NnetComputer computer(config_.compute_config, computation,
                         nnet_, delta_nnet_);
   // give the inputs to the computer object.
@@ -153,16 +153,14 @@ void NnetTrainer::TrainInternalBackstitch(const NnetExample &eg,
     // delta_nnet is scaled by 1 + backstitch_training_scale when added to nnet;
     max_change_scale = 1.0 + config_.backstitch_training_scale;
     scale_adding = 1.0 + config_.backstitch_training_scale;
+    // If relevant, add in the part of the gradient that comes from L2
+    // regularization.  It may not be optimally inefficient to do it on both
+    // passes of the backstitch, like we do here, but it probably minimizes
+    // any harmful interactions with the max-change.
+    ApplyL2Regularization(*nnet_,
+                          1.0 / scale_adding * GetNumNvalues(eg.io, false) *
+                          config_.l2_regularize_factor, delta_nnet_);
   }
-
-  // If relevant, add in the part of the gradient that comes from L2
-  // regularization.  It may not be optimally inefficient to do it on both
-  // passes of the backstitch, like we do here, but it probably minimizes
-  // any harmful interactions with the max-change.
-  ApplyL2Regularization(*nnet_,
-                        scale_adding * GetNumNvalues(eg.io, false) *
-                        config_.l2_regularize_factor,
-                        delta_nnet_);
 
   // Updates the parameters of nnet
   UpdateNnetWithMaxChange(*delta_nnet_, config_.max_param_change,

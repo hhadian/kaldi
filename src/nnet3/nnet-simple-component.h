@@ -762,14 +762,21 @@ class LogSoftmaxComponent: public NonlinearComponent {
     orthonormal-constraint=0.0   If you set this to 1.0, then
                            the linear_params_ matrix will be (approximately)
                            constrained during training to have orthonormal rows
-                           (or columns, whichever is fewer).  You can choose a
-                           positive nonzero value different than 1.0 to have a
-                           scaled orthonormal matrix, i.e. with singular values
-                           at the selected value (e.g. 0.5, or 2.0).  This is
-                           not enforced inside the component itself; you have to
-                           call ConstrainOrthonormal() from the training code to
-                           do this.  All this component does is return the
-                           OrthonormalConstraint() value.
+                           (or columns, whichever is fewer).. it turns out the
+                           real name for this is a "semi-orthogonal" matrix.
+                           You can choose a positive nonzero value different
+                           than 1.0 to have a scaled semi-orthgonal matrix,
+                           i.e. with singular values at the selected value
+                           (e.g. 0.5, or 2.0).  This is not enforced inside the
+                           component itself; you have to call
+                           ConstrainOrthonormal() from the training code to do
+                           this.  All this component does is return the
+                           OrthonormalConstraint() value.  If you set this to a
+                           negative value, it's like saying "for any value",
+                           i.e. it will constrain the parameter matrix to be
+                           closer to "any alpha" times a semi-orthogonal matrix,
+                           without changing its overall norm.
+
 
    Options to the natural gradient (you won't normally have to set these,
    the defaults are suitable):
@@ -851,15 +858,22 @@ class NaturalGradientAffineComponent: public AffineComponent {
                            Dimension is output-dim by (input-dim + 1), last
                            column is interpreted as the bias.
     orthonormal-constraint=0.0   If you set this to 1.0, then
-                           this matrix will be (approximately) constrained during
-                           training to have orthonormal rows (or columns, whichever
-                           is fewer).  You can choose a positive nonzero value different
-                           than 1.0 to have a scaled orthonormal matrix, i.e. with singular
-                           values at the selected value (e.g. 0.5, or 2.0).
-                           This is not enforced inside the component
-                           itself; you have to call ConstrainOrthonormal()
-                           from the training code to do this.  All this component
-                           does is return the OrthonormalConstraint() value.
+                           the linear_params_ matrix will be (approximately)
+                           constrained during training to have orthonormal rows
+                           (or columns, whichever is fewer).. it turns out the
+                           real name for this is a "semi-orthogonal" matrix.
+                           You can choose a positive nonzero value different
+                           than 1.0 to have a scaled semi-orthgonal matrix,
+                           i.e. with singular values at the selected value
+                           (e.g. 0.5, or 2.0).  This is not enforced inside the
+                           component itself; you have to call
+                           ConstrainOrthonormal() from the training code to do
+                           this.  All this component does is return the
+                           OrthonormalConstraint() value.  If you set this to a
+                           negative value, it's like saying "for any value",
+                           i.e. it will constrain the parameter matrix to be
+                           closer to "any alpha" times a semi-orthogonal matrix,
+                           without changing its overall norm.
 
    Options to the natural gradient (you won't normally have to set these,
    the defaults are suitable):
@@ -1207,10 +1221,31 @@ class SumBlockComponent: public Component {
 };
 
 
-// ClipGradientComponent just duplicates its input, but clips gradients
-// during backpropagation if they cross a predetermined threshold.
-// This component will be used to prevent gradient explosion problem in
-// recurrent neural networks
+/*
+ ClipGradientComponent just duplicates its input, but clips gradients
+ during backpropagation if they cross a predetermined threshold.
+ This component will be used to prevent gradient explosion problem in
+ recurrent neural networks.
+
+   Configuration values accepted:
+      dim                   Dimension of this component, e.g. 1024
+      clipping-threshold    Threshold to be used for clipping. It could correspond
+                            to max-row-norm (if norm_based_clipping_ == true) or
+                            max-absolute-value (otherwise).
+      norm-based-clipping   If true, the max-row-norm will be clipped. Else element-wise
+                            absolute value clipping is done.
+      self-repair-clipped-proportion-threshold  The threshold of clipped-proportion
+                            for self-repair mechanism to be activated. The self-repair mechanism
+                            adds a term (proportional to [-(input vector - self_repair_target_)])
+                            to in-deriv, attempting to shrink the maginitude of the input towards
+                            self_repair_target_ (e.g. 0.0 or 0.5). The default value is 1.0.
+      self-repair-target    The target value towards which self-repair is trying to set
+                            for in-deriv. The default value is 0.0.
+      self-repair-scale     Scale for the self-repair mechanism; see comments above.
+                            The default value is 0.0, but we usually set this to 1.0e-05 (or
+                            occasionally 1.0e-04) in the scripts.
+*/
+
 class ClipGradientComponent: public Component {
  public:
   ClipGradientComponent(int32 dim, BaseFloat clipping_threshold,
@@ -1411,6 +1446,19 @@ class PermuteComponent: public Component {
    trainable scale; it's like a linear component with a diagonal matrix.  This
    version (and its child class NaturalGradientPerElementScaleComponent)
    requires the input for backprop.  See also ScaleAndOffsetComponent.
+
+   Accepted values on its config line, with defaults if applicable:
+
+     vector           If specified, the offsets will be read from this file ('vector'
+                      is interpreted as an rxfilename).
+
+     dim              The dimension that this component inputs and outputs.
+                      Only required if 'vector' is not specified.
+
+     param-mean=1.0   Mean of randomly initialized offset parameters; should only
+                      be supplied if 'vector' is not supplied.
+     param-stddev=0.0 Standard deviation of randomly initialized offset parameters;
+                      should only be supplied if 'vector' is not supplied.
 */
 class PerElementScaleComponent: public UpdatableComponent {
  public:
@@ -1635,8 +1683,29 @@ class ConstantFunctionComponent: public UpdatableComponent {
 
 
 
-// NaturalGradientPerElementScaleComponent is like PerElementScaleComponent but
-// it uses a natural gradient update for the per-element scales.
+/**
+   NaturalGradientPerElementScaleComponent is like PerElementScaleComponent but
+   it uses a natural gradient update for the per-element scales.
+
+   Accepted values on its config line, with defaults if applicable:
+
+     vector           If specified, the offsets will be read from this file ('vector'
+                      is interpreted as an rxfilename).
+
+     dim              The dimension that this component inputs and outputs.
+                      Only required if 'vector' is not specified.
+
+     param-mean=1.0   Mean of randomly initialized offset parameters; should only
+                      be supplied if 'vector' is not supplied.
+     param-stddev=0.0 Standard deviation of randomly initialized offset parameters;
+                      should only be supplied if 'vector' is not supplied.
+
+  And the natural-gradient-related configuration values:
+      rank=8
+      update-period=10
+      num-samples-history=2000.0
+      alpha=4.0
+*/
 class NaturalGradientPerElementScaleComponent: public PerElementScaleComponent {
  public:
 
@@ -2176,7 +2245,7 @@ class LstmNonlinearityComponent: public UpdatableComponent {
   // it contains the 3 diagonal parameter matrices w_i, w_f and w_o.
   CuMatrix<BaseFloat> params_;
 
-  // If true, we expect an extra 2 dimensions on the input, for dropout masks
+  // If true, we expect an extra 3 dimensions on the input, for dropout masks
   // for i_t and f_t.
   bool use_dropout_;
 
