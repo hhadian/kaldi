@@ -74,6 +74,14 @@ def get_args():
                         dest='xent_regularize', default=0.0,
                         help="Weight of regularization function which is the "
                         "cross-entropy cost the outputs.")
+    parser.add_argument("--chain.boost", type=str,
+                        dest='boost', default="100%:0.0",
+                        help="Boost coefficient (i.e. b in bMMI).")
+    parser.add_argument("--chain.hard-boost", type=str,
+                        action=common_lib.StrToBoolAction,
+                        choices=["true", "false"],
+                        dest='hard_boost', default=False,
+                        help="If true, hard boosting will be enabled.")
     parser.add_argument("--chain.right-tolerance", type=int,
                         dest='right_tolerance', default=5, help="")
     parser.add_argument("--chain.left-tolerance", type=int,
@@ -454,6 +462,33 @@ def train(args, run_opts):
     else:
         models_to_combine = None
 
+
+    schedule_ends = []
+    coeffs = []
+    schedule_start = 0
+    for schedule_coeff in args.boost.split(" "):
+      [schedule, coeff] = schedule_coeff.split(":")
+      if (schedule.endswith("%")):
+        schedule = int(schedule[:-1]) * num_iters / 100
+      else:
+        schedule = int(schedule)
+      schedule += schedule_start
+      schedule_start = schedule
+      schedule_ends += [schedule]
+      coeffs += [float(coeff)]
+    logger.info("boost schedule ends: " + str(schedule_ends))
+    logger.info("boost coeffs: " + str(coeffs))
+    def determine_boost_coefficient(itr):
+      idx = 0
+      for it_end in schedule_ends:
+        if itr <= it_end:
+          break;
+        idx += 1
+      if idx >= len(coeffs):
+        idx = len(coeffs) - 1
+      return coeffs[idx]
+
+
     min_deriv_time = None
     max_deriv_time_relative = None
     if args.deriv_truncate_margin is not None:
@@ -527,6 +562,8 @@ def train(args, run_opts):
                 max_deriv_time_relative=max_deriv_time_relative,
                 l2_regularize=args.l2_regularize,
                 xent_regularize=args.xent_regularize,
+                boost=determine_boost_coefficient(iter),
+                hard_boost=args.hard_boost,
                 leaky_hmm_coefficient=args.leaky_hmm_coefficient,
                 momentum=args.momentum,
                 max_param_change=args.max_param_change,
@@ -569,6 +606,8 @@ def train(args, run_opts):
                 leaky_hmm_coefficient=args.leaky_hmm_coefficient,
                 l2_regularize=args.l2_regularize,
                 xent_regularize=args.xent_regularize,
+                boost=determine_boost_coefficient(num_iters),
+                hard_boost=args.hard_boost,
                 run_opts=run_opts,
                 max_objective_evaluations=args.max_objective_evaluations,
                 use_multitask_egs=use_multitask_egs)
