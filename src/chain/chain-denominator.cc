@@ -67,16 +67,20 @@ DenominatorComputation::DenominatorComputation(
   // kStrideEqualNumCols).  This depends on how the allocator works, and
   // actually might not happen, but anyway, the impact on speed would
   // likely be un-measurably small.
+
   exp_nnet_output_transposed_.Resize(nnet_output.NumCols(),
                                      nnet_output.NumRows(),
-                                     kUndefined, kStrideEqualNumCols);
-
+                                     kUndefined);
   if (opts_.boost != 0.0 && boosting_mask) {
+    KALDI_LOG << "boosting..." << opts_.boost;
     exp_nnet_output_transposed_.CopyFromMat(*boosting_mask, kTrans);
     if (opts_.hard_boost)
       exp_nnet_output_transposed_.ApplyHeaviside();
     exp_nnet_output_transposed_.Scale(-opts_.boost);
     exp_nnet_output_transposed_.AddMat(1.0, nnet_output, kTrans);
+  } else {
+    KALDI_LOG << "not boosting..." << opts_.boost;
+    exp_nnet_output_transposed_.CopyFromMat(nnet_output, kTrans);
   }
   // We limit the nnet output to the range [-30,30] before doing the exp;
   // this avoids NaNs appearing in the forward-backward computation, which

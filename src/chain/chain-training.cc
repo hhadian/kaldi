@@ -44,32 +44,24 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
   *weight = supervision.weight * supervision.num_sequences *
       supervision.frames_per_sequence;
 
+
+  bool is_output_deriv_temporary = false;
+  if (!nnet_output_deriv && opts.boost != 0.0) {
+    // so boosting is enabled, and we need derivatives.
+    nnet_output_deriv = new CuMatrix<BaseFloat>(nnet_output.NumRows(),
+                                                nnet_output.NumCols(),
+                                                kUndefined);
+    is_output_deriv_temporary = true;
+    KALDI_LOG << "***** Temporary nnet-out-deriv allocation.";
+  }
+
   if (nnet_output_deriv != NULL)
     nnet_output_deriv->SetZero();
 
-  { // Doing the denominator first helps to reduce the maximum
-    // memory use, as we can set 'xent_deriv' to nonempty after
-    // we've freed the memory in this object.
-    DenominatorComputation denominator(opts, den_graph,
-                                       supervision.num_sequences,
-                                       nnet_output);
 
-    den_logprob_weighted = supervision.weight * denominator.Forward();
-    if (nnet_output_deriv)
-      denominator_ok = denominator.Backward(-supervision.weight,
-                                nnet_output_deriv);
-  }
-
-  if (xent_output_deriv != NULL) {
-    // the reason for kStrideEqualNumCols is so that we can share the memory
-    // block with the memory that was used for exp_nnet_output_transposed_ from
-    // chain-denominator.cc, which has just been freed; it also uses the
-    // kStrideEqualNumCols arg (its shape is the transpose of this matrix's
-    // shape).
+  if (xent_output_deriv != NULL)
     xent_output_deriv->Resize(nnet_output.NumRows(), nnet_output.NumCols(),
-                              kSetZero, kStrideEqualNumCols);
-  }
-
+                              kSetZero);
 
   {
     GenericNumeratorComputation numerator(supervision, nnet_output);
@@ -91,6 +83,27 @@ void ComputeChainObjfAndDerivE2e(const ChainTrainingOptions &opts,
   }
   numerator_ok = numerator_ok &&
                  (num_logprob_weighted - num_logprob_weighted == 0);
+
+
+  {
+    DenominatorComputation denominator(opts, den_graph,
+                                       supervision.num_sequences,
+                                       nnet_output,
+                                       nnet_output_deriv);
+
+    if (is_output_deriv_temporary) {
+      delete nnet_output_deriv;
+      nnet_output_deriv = NULL;
+      KALDI_LOG << " ***** Temporary de-allocation.";
+    }
+
+
+    den_logprob_weighted = supervision.weight * denominator.Forward();
+    if (nnet_output_deriv)
+      denominator_ok = denominator.Backward(-supervision.weight,
+                                nnet_output_deriv);
+  }
+
 
   *objf = num_logprob_weighted - den_logprob_weighted;
   if (!((*objf) - (*objf) == 0) || !denominator_ok || !numerator_ok) {
