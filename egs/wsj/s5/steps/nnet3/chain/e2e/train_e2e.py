@@ -265,7 +265,7 @@ def train(args, run_opts):
 
     # Set some variables.
     num_jobs = common_lib.get_number_of_jobs(args.tree_dir)
-    feat_dim = common_lib.get_feat_dim(args.feat_dir)
+    feat_dim = 40 #common_lib.get_feat_dim(args.feat_dir)
     ivector_dim = common_lib.get_ivector_dim(args.online_ivector_dir)
     ivector_id = common_lib.get_ivector_extractor_id(args.online_ivector_dir)
     logger.info("feat-dim: {}, ivector-dim: {}".format(feat_dim, ivector_dim))
@@ -472,6 +472,7 @@ def train(args, run_opts):
                     float(num_archives_processed) / num_archives_to_process,
                     iter),
                 shrinkage_value=shrinkage_value,
+                train_opts=' '.join(args.train_opts),
                 num_chunk_per_minibatch_str=args.num_chunk_per_minibatch,
                 apply_deriv_weights=args.apply_deriv_weights,
                 min_deriv_time=min_deriv_time,

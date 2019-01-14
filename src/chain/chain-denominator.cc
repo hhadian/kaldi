@@ -28,7 +28,7 @@ DenominatorComputation::DenominatorComputation(
     const ChainTrainingOptions &opts,
     const DenominatorGraph &den_graph,
     int32 num_sequences,
-    const CuMatrixBase<BaseFloat> &nnet_output):
+    const CuMatrixBase<BaseFloat> &nnet_output, std::vector<bool> seq_ok):
     opts_(opts),
     den_graph_(den_graph),
     num_sequences_(num_sequences),
@@ -46,7 +46,7 @@ DenominatorComputation::DenominatorComputation(
     tot_prob_(num_sequences_, kUndefined),
     tot_log_prob_(num_sequences_, kUndefined),
     log_correction_term_(num_sequences_, kUndefined),
-    ok_(true) {
+    ok_(true), seq_ok_(seq_ok) {
   // We don't let leaky_hmm_coefficient be exactly zero (although that would
   // make sense mathematically, corresponding to "turning off" the leaky HMM),
   // because that would lead to underflow and eventually NaN's or inf's
@@ -72,7 +72,11 @@ DenominatorComputation::DenominatorComputation(
   // We limit the nnet output to the range [-30,30] before doing the exp;
   // this avoids NaNs appearing in the forward-backward computation, which
   // is not done in log space.
-  exp_nnet_output_transposed_.ApplyExpLimited(-30.0, 30.0);
+  //  exp_nnet_output_transposed_.ApplyExpLimited(-30.0, 30.0);
+  exp_nnet_output_transposed_.ApplyExp();
+  if (seq_ok_.size() == 0)
+    seq_ok_.resize(num_sequences_, true);
+  KALDI_ASSERT(seq_ok_.size() == num_sequences_);
 }
 
 
@@ -259,7 +263,21 @@ BaseFloat DenominatorComputation::ComputeTotLogLike() {
   log_inv_arbitrary_scales.ApplyLog();
   BaseFloat log_inv_arbitrary_scales_product =
       log_inv_arbitrary_scales.Sum();
-  return tot_log_prob + log_inv_arbitrary_scales_product;
+  BaseFloat smart_tot_logprob = 0.0;
+  CuVector<BaseFloat> totscales_vect_gpu(num_sequences_);
+  totscales_vect_gpu.AddRowSumMat(1.0, log_inv_arbitrary_scales, 0.0);
+  Vector<BaseFloat> totscales_vect(totscales_vect_gpu);
+  Vector<BaseFloat> totlogprob_vect(tot_log_prob_);
+  for (int32 i = 0; i < num_sequences_; i++) {
+    totlogprob_vect(i) += totscales_vect(i);
+    if (seq_ok_[i] && totlogprob_vect(i) - totlogprob_vect(i) == 0.0)
+      smart_tot_logprob += totlogprob_vect(i);
+    else
+      seq_ok_[i] = false;
+  }
+
+  return smart_tot_logprob;
+  //  return tot_log_prob + log_inv_arbitrary_scales_product;
 }
 
 

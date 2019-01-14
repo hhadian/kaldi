@@ -84,8 +84,15 @@ int main(int argc, char *argv[]) {
 
       SequentialNnetChainExampleReader example_reader(examples_rspecifier);
 
-      for (; !example_reader.Done(); example_reader.Next())
-        trainer.Train(example_reader.Value());
+      for (; !example_reader.Done(); example_reader.Next()) {
+        const NnetChainExample &eg = example_reader.Value();
+        std::cerr << "\n";
+        KALDI_LOG << "Training on minibatch " << example_reader.Key()
+                  << "  T: " << eg.outputs[0].supervision.frames_per_sequence
+                  << "  N: " << eg.outputs[0].supervision.num_sequences;
+
+        trainer.Train(eg);
+      }
 
       ok = trainer.PrintTotalStats();
     }

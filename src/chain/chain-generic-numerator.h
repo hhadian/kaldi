@@ -1,7 +1,6 @@
-// chain/chain-generic-numerator.h
+// chain/chain-full-numerator.h
 
-// Copyright       2017  Hossein Hadian
-//                 2018 Johns Hopkins University (Jan "Yenda" Trmal)
+// Copyright       2015  Hossein Hadian
 
 
 // See ../../COPYING for clarification regarding multiple authors
@@ -20,8 +19,9 @@
 // limitations under the License.
 
 
-#ifndef KALDI_CHAIN_CHAIN_GENERIC_NUMERATOR_H_
-#define KALDI_CHAIN_CHAIN_GENERIC_NUMERATOR_H_
+#ifndef KALDI_CHAIN_CHAIN_FULL_NUMERATOR_H_
+#define KALDI_CHAIN_CHAIN_FULL_NUMERATOR_H_
+#define BFloat double
 
 #include <vector>
 #include <map>
@@ -33,174 +33,109 @@
 #include "lat/kaldi-lattice.h"
 #include "matrix/kaldi-matrix.h"
 #include "hmm/transition-model.h"
-#include "chain/chain-supervision.h"
 #include "cudamatrix/cu-matrix.h"
 #include "cudamatrix/cu-array.h"
-#include "chain/chain-datastruct.h"
+#include "chain/chain-num-graph.h"
+#include "chain/chain-training.h"
 
 namespace kaldi {
 namespace chain {
 
-/* This extended comment explains how end-to-end (i.e. flat-start) chain
-   training is done and how it is mainly different from regular chain training.
 
-   The key differnece with regular chain is that the end-to-end supervision FST
-   (i.e. numerator graph) can have loops and more than one final state (we
-   call it 'Generic' numerator in the code). This is because we do not
-   have any alignments so we can't split the utterances and we can't remove
-   the self-loops.
-   Of course, the end-to-end FST still has to be epsilon-free and have pdf_id+1
-   on its input and output labels, just like the regular supervision FST.
-   The end-to-end supervision (which contains the generic numerator FST's) is
-   created using TrainingGraphToSupervision from a training FST (i.e. an FST
-   created using compile-train-graphs). It is stored in the same struct as
-   regular supervision (i.e. chain::Supervision) but this function
-   sets the 'e2e' flag to true. Also the generic  numerator FSTs
-   are stored in 'e2e_fsts' instead of 'fst'.
+// This class is responsible for the forward-backward of the 'supervision'
+// (numerator) FST.
+//
+// note: the supervision.weight is ignored by this class, you have to apply
+// it externally.
+// Because the supervision FSTs are quite skinny, i.e. have very few paths for
+// each frame, it's feasible to do this computation on the CPU, and that's what
+// we do.  We transfer from/to the GPU only the things that we need.
 
-   The TrainingGraphToSupervision function is called in nnet3-chain-e2e-get-egs
-   binary to create end-to-end chain egs. The only difference between a regular
-   and end-to-end chain example is the supervision as explained above.
-
-   class GenericNumeratorComputation is responsible for doing Forward-Backward
-   on a generic FST (i.e. the kind of FST we use in end-to-end chain
-   training). It is the same as DenominatorComputation with 2 differences:
-   [1] it runs on CPU
-   [2] it does not use leakyHMM
-   The F-B computation is done in log-domain.
-
-   When the 'e2e' flag of a supervision is set, the ComputeChainObjfAndDeriv
-   function in chain-training.cc uses GenericNumeratorComputation (instead
-   of NumeratorCompuation) to compute the numerator derivatives.
-
-   The implementation tries to optimize the memory transfers. The optimization
-   uses the observation that for each supervision graph, only very limited
-   number of pdfs is needed to evaluate the possible transitions from state
-   to state. That means that for the F-B, we don't have to transfer the whole
-   neural network output, we can copy only the limited set of pdfs activation
-   values that will be needed for F-B on the given graph.
-
-   To streamline things, in the constructor of this class, we remap the pdfs
-   indices to a new space and store the bookkeeping info in the index_to_pdf_
-   structure. This can be seen as if for each FST we create a subspace that
-   has only the pdfs that are needed for the given FST (possibly ordered
-   differently).
-
-   Morover, we optimize memory transfers. The matrix of nnet outputs can be
-   reshaped (viewed) as a matrix of dimensions
-   (frames_per_sequence) x (num_sequences * pdf_stride), where the pdf_stride
-   is the stride of the original matrix and pdf_stride >= num_pdfs.
-   When the matrix is viewed this way, it becomes obvious that the pdfs of the
-   k-th supervision sequence  have column index k * pdf_stride + original_pdf_index
-   Once this is understood, the way how copy all pdfs in one shot should become
-   obvious.
-
-   The complete F-B is then done in this remapped space and only
-   when copying the activation values from the GPU memory or copying
-   the computed derivatives to GPU memory, we use the bookkeeping info to
-   map the values correctly.
- */
-
-
-// This class is responsible for the forward-backward of the
-// end-to-end 'supervision' (numerator) FST. This kind of FST can
-// have self-loops.
-// Note: An end-to-end supervision is the same as a regular supervision
-// (class chain::Supervision) except the 'e2e' flag is set to true
-// and the numerator FSTs are stored in 'e2e_fsts' instead of 'fst'
-
-class GenericNumeratorComputation {
+class FullNumeratorComputation {
  public:
-  /// Initializes the object.
-  GenericNumeratorComputation(const Supervision &supervision,
-                              const CuMatrixBase<BaseFloat> &nnet_output);
 
-  // Does the forward-backward computation. Returns the total log-prob
-  // multiplied by supervision_.weight.
-  // In the backward computation, add (efficiently) the derivative of the
+
+  FullNumeratorComputation(const ChainTrainingOptions &opts,
+                           const NumeratorGraph &num_graph,
+                           const CuMatrixBase<BaseFloat> &nnet_output);
+
+  // Does the forward computation.  Returns the total log-prob multiplied
+  // by supervision_.weight.
+  BaseFloat Forward();
+
+  // Does the backward computation and (efficiently) adds the derivative of the
   // nnet output w.r.t. the (log-prob times supervision_.weight times
   // deriv_weight) to 'nnet_output_deriv'.
-  bool ForwardBackward(BaseFloat *total_loglike,
-                       CuMatrixBase<BaseFloat> *nnet_output_deriv);
+  bool Backward(BaseFloat deriv_weight, CuMatrixBase<BaseFloat> *nnet_output_deriv);
 
-  BaseFloat ComputeObjf();
+  bool Viterbi(
+      BaseFloat deriv_weight,
+      BaseFloat *tot_logprob,
+      CuMatrixBase<BaseFloat> *nnet_output_deriv);
+
+  std::vector<bool>& GetSeqOk() {return seq_ok_;}
  private:
-  // For the remapped FSTs, copy the appropriate activations to CPU memory.
-  // For explanation of what remapped FST is, see the large comment in the
-  // beginning of the file
-  void CopySpecificPdfsIndirect(
-                             const CuMatrixBase<BaseFloat> &nnet_output,
-                             const std::vector<MatrixIndexT> &indices,
-                             Matrix<BaseFloat> *output);
 
-  // For the remapped FSTs, copy the computed values back to gpu,
-  // expand to the original shape and add to the output matrix.
-  // For explanation of what remapped FST is, see the large comment in the
-  // beginning of the file.
-  void AddSpecificPdfsIndirect(
-                             Matrix<BaseFloat> *logprobs,
-                             const std::vector<MatrixIndexT> &indices,
-                             CuMatrixBase<BaseFloat> *output);
-
+  enum { kMaxDerivTimeSteps = 4 };
   // sets up the alpha for frame t = 0.
-  void AlphaFirstFrame(int seq, Matrix<BaseFloat> *alpha);
+  void AlphaFirstFrame();
 
-  // the alpha computation for 0 < t <= supervision_.frames_per_sequence
-  // for some 0 <= seq < supervision_.num_sequences.
-  BaseFloat AlphaRemainingFrames(int seq,
-                              const Matrix<BaseFloat> &probs,
-                              Matrix<BaseFloat> *alpha);
+  // the alpha computation for some 0 < t <= num_time_steps_.
+  void AlphaGeneralFrame(int32 t);
 
-  // the beta computation for 0 <= t < supervision_.frames_per_sequence
-  // for some 0 <= seq < supervision_.num_sequences.
-  void BetaRemainingFrames(int32 seq,
-                        const Matrix<BaseFloat> &probs,
-                        const Matrix<BaseFloat> &alpha,
-                        Matrix<BaseFloat> *beta,
-                        Matrix<BaseFloat> *derivs);
+  BaseFloat ComputeTotLogLike();
 
-  // the beta computation for t = supervision_.frames_per_sequence
-  void BetaLastFrame(int seq,
-                     const Matrix<BaseFloat> &alpha,
-                     Matrix<BaseFloat> *beta);
+  // sets up the beta for frame t = num_time_steps_.
+  void BetaLastFrame();
 
-  // returns total prob for the given matrix alpha (assumes the alpha
-  // matrix was computed using AlphaFirstFrame() and AlphaRemainingFrames()
-  // (it's exactly like 'tot_probe_' in DenominatorComputation)
-  BaseFloat GetTotalProb(const Matrix<BaseFloat> &alpha);
+  // the beta computation for 0 <= beta < num_time_steps_.
+  void BetaGeneralFrame(int32 t);
 
   // some checking that we can do if debug mode is activated, or on frame zero.
-  // Returns false if a bad problem is detected.
-  bool CheckValues(int32 seq,
-                   const Matrix<BaseFloat> &probs,
-                   const Matrix<BaseFloat> &alpha,
-                   const Matrix<BaseFloat> &beta,
-                   const Matrix<BaseFloat> &derivs) const;
+  // Sets ok_ to false if a bad problem is detected.
+  void BetaGeneralFrameDebug(int32 t);
 
 
-  const Supervision &supervision_;
+  const ChainTrainingOptions &opts_;
+  const NumeratorGraph &num_graph_;
 
-  // a reference to the nnet output.
-  const CuMatrixBase<BaseFloat> &nnet_output_;
-  int32 nnet_output_stride_;   // we keep the original stride extra
-                               // as the matrix can change before ForwardBackward
+  // number of separate frame sequences
+  int32 num_sequences_;
 
-  // in_transitions_ lists all the incoming transitions for
-  // each state of each numerator graph
-  // out_transitions_ does the same but for the outgoing transitions
-  typedef std::vector<std::vector<DenominatorGraphTransition> > TransitionMap;
-  std::vector<TransitionMap> in_transitions_, out_transitions_;
-  std::vector<MatrixIndexT> index_to_pdf_;
+  // number of frames per sequence.  nnet_output_.NumRows() equals
+  // num_sequences_ * frames_per_sequence.
+  int32 frames_per_sequence_;
 
-  // final probs for each state of each numerator graph
-  Matrix<BaseFloat> final_probs_;  // indexed by seq, state
+  // the exp transpsed of the neural net output.
+  Matrix<BaseFloat> exp_nnet_output_transposed_;
 
-  // an offset subtracted from the logprobs of transitions out of the first
-  // state of each graph to help reduce numerical problems.
-  Vector<BaseFloat> offsets_;
+  // the derivs w.r.t. the nnet outputs (transposed)
+  Matrix<BaseFloat> nnet_output_deriv_transposed_;
+
+  // Viterbi
+  Matrix<BaseFloat> logdelta_;
+  std::vector<std::vector<std::vector<int32> > > sai_;
+
+  Matrix<BFloat> alpha_;
+
+  Matrix<BFloat> beta_;
+
+  Vector<BFloat> tot_prob_;
+
+  // the log of tot_prob_.
+  Vector<BFloat> tot_log_prob_;
+
+  std::vector<bool> seq_ok_;  // OK per sequence
+  bool ok_;
 };
+
+bool Align(const Supervision& sup,
+           const MatrixBase<BaseFloat> &nnet_output,
+           std::vector<std::vector<int32> > *alignments,
+           BaseFloat *tot_logprob);
+
 
 }  // namespace chain
 }  // namespace kaldi
 
-#endif  // KALDI_CHAIN_CHAIN_GENERIC_NUMERATOR_H_
+#endif  // KALDI_CHAIN_CHAIN_FULL_NUMERATOR_H_

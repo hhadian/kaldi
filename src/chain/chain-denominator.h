@@ -208,7 +208,8 @@ class DenominatorComputation {
   DenominatorComputation(const ChainTrainingOptions &opts,
                          const DenominatorGraph &den_graph,
                          int32 num_sequences,
-                         const CuMatrixBase<BaseFloat> &nnet_output);
+                         const CuMatrixBase<BaseFloat> &nnet_output,
+                         std::vector<bool> seq_ok = std::vector<bool>());
 
   // Does the forward computation, and returns the total log-like summed over
   // all sequences.  You will have to scale this by any supervision weighting
@@ -307,6 +308,7 @@ class DenominatorComputation {
   CuVector<BaseFloat> log_correction_term_;
 
   bool ok_;
+  std::vector<bool> seq_ok_;
 };
 
 

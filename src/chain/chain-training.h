@@ -53,7 +53,6 @@ struct ChainTrainingOptions {
   // B, with transition from A to B, so we don't have to consider epsilon loops-
   // or just imagine the coefficient is small enough that we can ignore the
   // epsilon loops.
-  // Note: we generally set leaky_hmm_coefficient to 0.1.
   BaseFloat leaky_hmm_coefficient;
 
 
@@ -61,9 +60,32 @@ struct ChainTrainingOptions {
   // the network is expected to have an output named 'output-xent', which
   // should have a softmax as its final nonlinearity.
   BaseFloat xent_regularize;
+  bool disable_mmi;
+  bool equal_align;
+  bool den_use_initials, den_use_finals;
+  bool viterbi;
+  bool check_derivs;
+  BaseFloat max_dur;
+  BaseFloat num_scale;
 
+  std::string trans_probs_filename;
+  std::string write_trans_stats_prefix;
+  Vector<BaseFloat> trans_probs;
+  BaseFloat min_transition_prob;
+
+  std::string pdf_map_filename;
+  std::vector<int32> pdf_map;
+
+  bool  offset_first_transitions;
+  int32 prune;
+  BaseFloat prune_beam;
   ChainTrainingOptions(): l2_regularize(0.0), leaky_hmm_coefficient(1.0e-05),
-                          xent_regularize(0.0) { }
+                          xent_regularize(0.0), disable_mmi(false),
+                          equal_align(false), den_use_initials (true),
+                          den_use_finals (false), viterbi(false),
+                          check_derivs(false), max_dur(0), num_scale(1.0),
+                          min_transition_prob(0.0),
+                          offset_first_transitions(true), prune(0) { }
 
   void Register(OptionsItf *opts) {
     opts->Register("l2-regularize", &l2_regularize, "l2 regularization "
@@ -79,6 +101,22 @@ struct ChainTrainingOptions {
                    "nonzero, the network is expected to have an output "
                    "named 'output-xent', which should have a softmax as "
                    "its final nonlinearity.");
+    opts->Register("disable-mmi", &disable_mmi, "Use only the num graph");
+    opts->Register("equal-align", &equal_align, "Do equal align if necessary or not?");
+    opts->Register("den-use-initials", &den_use_initials, "Use initial state probs in den "
+                   "(all states are initial with some probability)");
+    opts->Register("den-use-finals", &den_use_finals, "Use final state probs in den");
+    opts->Register("viterbi", &viterbi, "Use Viterbi instead of FB");
+    opts->Register("check-derivs", &check_derivs, "Double check the derivatives");
+    opts->Register("max-dur", &max_dur, "Max duration of utterances in the eg (in seconds). Longer egs will not be trained on.");
+    opts->Register("num-scale", &num_scale, "Bigger values  -->  more concentrated numerator occupation probs.");
+    opts->Register("trans-probs-filename", &trans_probs_filename, "Double check the derivatives");
+    opts->Register("write-trans-stats-prefix", &write_trans_stats_prefix, "Double check the derivatives");
+    opts->Register("min-transition-prob", &min_transition_prob, "Minimum transition prob for when transition probs are used");
+    opts->Register("pdf-map-filename", &pdf_map_filename, "Path to a pdf map file -- for #pdf_tying");
+    opts->Register("offset-first-transitions", &offset_first_transitions, "Offset first transitions in num computation");
+    opts->Register("prune", &prune, "if >=1 do pruned forward-backward");
+    opts->Register("prune-beam", &prune_beam, "pruned forward-backward beam");
   }
 };
 
@@ -108,13 +146,10 @@ struct ChainTrainingOptions {
                            You don't have to zero this before passing to this function,
                            we zero it internally.
    @param [out] xent_output_deriv  If non-NULL, then the numerator part of the derivative
-                           (which equals a posterior from the numerator
-                           forward-backward, scaled by the supervision weight)
-                           is written to here (this function will set it to the
-                           correct size first; doing it this way reduces the
-                           peak memory use).  xent_output_deriv will be used in
-                           the cross-entropy regularization code; it is also
-                           used in computing the cross-entropy objective value.
+                           (which equals a posterior from the numerator forward-backward,
+                           scaled by the supervision weight) is written to here.  This will
+                           be used in the cross-entropy regularization code.  This value
+                           is also used in computing the cross-entropy objective value.
 */
 void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
                               const DenominatorGraph &den_graph,
