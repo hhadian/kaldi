@@ -39,13 +39,19 @@ if [ $stage -le 0 ]; then
   # set SITW.  The script removes these overlapping speakers from VoxCeleb1.
   local/make_voxceleb1.pl $voxceleb1_root data
 
-  # Prepare the VoxCeleb2 dataset.
+  # Prepare the dev portion of the VoxCeleb2 dataset.
   local/make_voxceleb2.pl $voxceleb2_root dev data/voxceleb2_train
-  local/make_voxceleb2.pl $voxceleb2_root test data/voxceleb2_test
 
-  # We'll train on all of VoxCeleb2, plus the training portion of VoxCeleb1.
-  # This should give 7,351 speakers and 1,277,503 utterances.
-  utils/combine_data.sh data/train data/voxceleb2_train data/voxceleb2_test data/voxceleb1
+  # The original version of this recipe included the test portion of VoxCeleb2
+  # in the training list.  Unfortunately, it turns out that there's an overlap
+  # with our evaluation set, Speakers in the Wild.  Therefore, we've removed
+  # this dataset from the training list.
+  # local/make_voxceleb2.pl $voxceleb2_root test data/voxceleb2_test
+
+  # We'll train on the dev portion of VoxCeleb2, plus VoxCeleb1 (minus the
+  # speakers that overlap with SITW).
+  # This should leave 7,185 speakers and 1,236,567 utterances.
+  utils/combine_data.sh data/train data/voxceleb2_train data/voxceleb1
 
   # Prepare Speakers in the Wild.  This is our evaluation dataset.
   local/make_sitw.sh $sitw_root data
@@ -82,7 +88,7 @@ if [ $stage -le 2 ]; then
 
   # Make a reverberated version of the VoxCeleb2 list.  Note that we don't add any
   # additive noise here.
-  python steps/data/reverberate_data_dir.py \
+  steps/data/reverberate_data_dir.py \
     "${rvb_opts[@]}" \
     --speech-rvb-probability 1 \
     --pointsource-noise-addition-probability 0 \
@@ -107,11 +113,11 @@ if [ $stage -le 2 ]; then
   done
 
   # Augment with musan_noise
-  python steps/data/augment_data_dir.py --utt-suffix "noise" --fg-interval 1 --fg-snrs "15:10:5:0" --fg-noise-dir "data/musan_noise" data/train data/train_noise
+  steps/data/augment_data_dir.py --utt-suffix "noise" --fg-interval 1 --fg-snrs "15:10:5:0" --fg-noise-dir "data/musan_noise" data/train data/train_noise
   # Augment with musan_music
-  python steps/data/augment_data_dir.py --utt-suffix "music" --bg-snrs "15:10:8:5" --num-bg-noises "1" --bg-noise-dir "data/musan_music" data/train data/train_music
+  steps/data/augment_data_dir.py --utt-suffix "music" --bg-snrs "15:10:8:5" --num-bg-noises "1" --bg-noise-dir "data/musan_music" data/train data/train_music
   # Augment with musan_speech
-  python steps/data/augment_data_dir.py --utt-suffix "babble" --bg-snrs "20:17:15:13" --num-bg-noises "3:4:5:6:7" --bg-noise-dir "data/musan_speech" data/train data/train_babble
+  steps/data/augment_data_dir.py --utt-suffix "babble" --bg-snrs "20:17:15:13" --num-bg-noises "3:4:5:6:7" --bg-noise-dir "data/musan_speech" data/train data/train_babble
 
   # Combine reverb, noise, music, and babble into one directory.
   utils/combine_data.sh data/train_aug data/train_reverb data/train_noise data/train_music data/train_babble
@@ -169,7 +175,7 @@ if [ $stage -le 5 ]; then
 fi
 
 # Stages 6 through 8 are handled in run_xvector.sh
-local/nnet3/xvector/run_xvector.sh --stage $stage --train-stage 30 \
+local/nnet3/xvector/run_xvector.sh --stage $stage --train-stage -1 \
   --data data/train_combined_no_sil --nnet-dir $nnet_dir \
   --egs-dir $nnet_dir/egs
 
@@ -228,9 +234,9 @@ if [ $stage -le 11 ]; then
     "cat '$sitw_dev_trials_core' | cut -d\  --fields=1,2 |" $nnet_dir/scores/sitw_dev_core_scores || exit 1;
 
   # SITW Dev Core:
-  # EER: 3.08%
-  # minDCF(p-target=0.01): 0.3016
-  # minDCF(p-target=0.001): 0.4993
+  # EER: 3.003%
+  # minDCF(p-target=0.01): 0.3119
+  # minDCF(p-target=0.001): 0.4955
   echo "SITW Dev Core:"
   eer=$(paste $sitw_dev_trials_core $nnet_dir/scores/sitw_dev_core_scores | awk '{print $6, $3}' | compute-eer - 2>/dev/null)
   mindcf1=`sid/compute_min_dcf.py --p-target 0.01 $nnet_dir/scores/sitw_dev_core_scores $sitw_dev_trials_core 2> /dev/null`
@@ -251,9 +257,9 @@ if [ $stage -le 12 ]; then
     "cat '$sitw_eval_trials_core' | cut -d\  --fields=1,2 |" $nnet_dir/scores/sitw_eval_core_scores || exit 1;
 
   # SITW Eval Core:
-  # EER: 3.335%
-  # minDCF(p-target=0.01): 0.3412
-  # minDCF(p-target=0.001): 0.5106
+  # EER: 3.499%
+  # minDCF(p-target=0.01): 0.3424
+  # minDCF(p-target=0.001): 0.5164
   echo -e "\nSITW Eval Core:";
   eer=$(paste $sitw_eval_trials_core $nnet_dir/scores/sitw_eval_core_scores | awk '{print $6, $3}' | compute-eer - 2>/dev/null)
   mindcf1=`sid/compute_min_dcf.py --p-target 0.01 $nnet_dir/scores/sitw_eval_core_scores $sitw_eval_trials_core 2> /dev/null`

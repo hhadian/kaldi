@@ -39,13 +39,18 @@ if [ $stage -le 0 ]; then
   # set SITW.  The script removes the overlapping speakers from VoxCeleb1.
   local/make_voxceleb1.pl $voxceleb1_root data
 
-  # Prepare the VoxCeleb2 dataset.
+  # Prepare the dev portion of the VoxCeleb2 dataset.
   local/make_voxceleb2.pl $voxceleb2_root dev data/voxceleb2_train
-  local/make_voxceleb2.pl $voxceleb2_root test data/voxceleb2_test
+
+  # The original version of this recipe included the test portion of VoxCeleb2
+  # in the training list.  Unfortunately, it turns out that there's an overlap
+  # with our evaluation set, Speakers in the Wild.  Therefore, we've removed
+  # this dataset from the training list.
+  # local/make_voxceleb2.pl $voxceleb2_root test data/voxceleb2_test
 
   # We'll train on all of VoxCeleb2, plus the training portion of VoxCeleb1.
-  # This should give 7,351 speakers and 1,277,503 utterances.
-  utils/combine_data.sh data/train data/voxceleb2_train data/voxceleb2_test data/voxceleb1
+  # This should leave 7,185 speakers and 1,236,567 utterances.
+  utils/combine_data.sh data/train data/voxceleb2_train data/voxceleb1
 
   # Prepare Speakers in the Wild.  This is our evaluation dataset.
   local/make_sitw.sh $sitw_root data
@@ -117,7 +122,7 @@ if [ $stage -le 4 ]; then
 
   # Make a reverberated version of the VoxCeleb2 list.  Note that we don't add any
   # additive noise here.
-  python steps/data/reverberate_data_dir.py \
+  steps/data/reverberate_data_dir.py \
     "${rvb_opts[@]}" \
     --speech-rvb-probability 1 \
     --pointsource-noise-addition-probability 0 \
@@ -142,11 +147,11 @@ if [ $stage -le 4 ]; then
   done
 
   # Augment with musan_noise
-  python steps/data/augment_data_dir.py --utt-suffix "noise" --fg-interval 1 --fg-snrs "15:10:5:0" --fg-noise-dir "data/musan_noise" data/train_100k data/train_100k_noise
+  steps/data/augment_data_dir.py --utt-suffix "noise" --fg-interval 1 --fg-snrs "15:10:5:0" --fg-noise-dir "data/musan_noise" data/train_100k data/train_100k_noise
   # Augment with musan_music
-  python steps/data/augment_data_dir.py --utt-suffix "music" --bg-snrs "15:10:8:5" --num-bg-noises "1" --bg-noise-dir "data/musan_music" data/train_100k data/train_100k_music
+  steps/data/augment_data_dir.py --utt-suffix "music" --bg-snrs "15:10:8:5" --num-bg-noises "1" --bg-noise-dir "data/musan_music" data/train_100k data/train_100k_music
   # Augment with musan_speech
-  python steps/data/augment_data_dir.py --utt-suffix "babble" --bg-snrs "20:17:15:13" --num-bg-noises "3:4:5:6:7" --bg-noise-dir "data/musan_speech" data/train_100k data/train_100k_babble
+  steps/data/augment_data_dir.py --utt-suffix "babble" --bg-snrs "20:17:15:13" --num-bg-noises "3:4:5:6:7" --bg-noise-dir "data/musan_speech" data/train_100k data/train_100k_babble
 
   # Combine reverb, noise, music, and babble into one directory.
   utils/combine_data.sh data/train_aug data/train_100k_reverb data/train_100k_noise data/train_100k_music data/train_100k_babble
@@ -213,9 +218,9 @@ if [ $stage -le 8 ]; then
     "cat '$sitw_dev_trials_core' | cut -d\  --fields=1,2 |" exp/scores/sitw_dev_core_scores || exit 1;
 
   # SITW Dev Core:
-  # EER: 5.044%
-  # minDCF(p-target=0.01): 0.4154
-  # minDCF(p-target=0.001): 0.5583
+  # EER: 4.813%
+  # minDCF(p-target=0.01): 0.4250
+  # minDCF(p-target=0.001): 0.5727
   echo "SITW Dev Core:"
   eer=$(paste $sitw_dev_trials_core exp/scores/sitw_dev_core_scores | awk '{print $6, $3}' | compute-eer - 2>/dev/null)
   mindcf1=`sid/compute_min_dcf.py --p-target 0.01 exp/scores/sitw_dev_core_scores $sitw_dev_trials_core 2> /dev/null`
@@ -236,9 +241,9 @@ if [ $stage -le 9 ]; then
     "cat '$sitw_eval_trials_core' | cut -d\  --fields=1,2 |" exp/scores/sitw_eval_core_scores || exit 1;
 
   # SITW Eval Core:
-  # EER: 5.303%
-  # minDCF(p-target=0.01): 0.4526
-  # minDCF(p-target=0.001): 0.6347
+  # EER: 5.659%
+  # minDCF(p-target=0.01): 0.4637
+  # minDCF(p-target=0.001): 0.6290
   echo -e "\nSITW Eval Core:";
   eer=$(paste $sitw_eval_trials_core exp/scores/sitw_eval_core_scores | awk '{print $6, $3}' | compute-eer - 2>/dev/null)
   mindcf1=`sid/compute_min_dcf.py --p-target 0.01 exp/scores/sitw_eval_core_scores $sitw_eval_trials_core 2> /dev/null`
