@@ -426,6 +426,8 @@ def train(args, run_opts):
         current_num_jobs = int(0.5 + args.num_jobs_initial
                                + (args.num_jobs_final - args.num_jobs_initial)
                                * float(iter) / num_iters)
+        if iter <= 4:
+            current_num_jobs = 1
 
         if args.stage <= iter:
             model_file = "{dir}/{iter}.mdl".format(dir=args.dir, iter=iter)

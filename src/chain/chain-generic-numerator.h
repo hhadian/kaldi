@@ -127,6 +127,7 @@ class FullNumeratorComputation {
 
   std::vector<bool> seq_ok_;  // OK per sequence
   bool ok_;
+  long tot_pruned_, tot_states_, tot_active_arcs_, tot_arcs_;
 };
 
 bool Align(const Supervision& sup,

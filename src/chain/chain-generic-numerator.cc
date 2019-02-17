@@ -77,6 +77,7 @@ FullNumeratorComputation::FullNumeratorComputation(
       break;
     }
   }
+  tot_pruned_ = tot_states_ = tot_active_arcs_ = tot_arcs_ = 0;
 }
 
 // TODO: merge this with the current Forward/Backward functions --> more elagant
@@ -283,7 +284,7 @@ void FullNumeratorComputation::AlphaGeneralFrame(int32 t) {
         max_alpha = this_tot_alpha;
     }  // state h
 
-    if (opts_.prune <= 0)
+    if (opts_.prune != 2 && opts_.prune != 3)
       continue;
     if (max_alpha == 0.0 || max_alpha - max_alpha != 0.0) {
       KALDI_LOG << "Bad max-alpha for seq " << s << " at time " << t << ": "
@@ -315,6 +316,8 @@ void FullNumeratorComputation::AlphaGeneralFrame(int32 t) {
                   << " states with tot-prob: " << totpruned
                   << " remaining states: " << num_graph_.NumStates()[s] - npruned
                   << " and tot-unpruned-prob: " << totnonpruned;
+    tot_pruned_ += npruned;
+    tot_states_ += num_graph_.NumStates()[s];
   }   // seq s
 
   // Now compute alpha-sums for frame t:
@@ -370,6 +373,10 @@ BaseFloat FullNumeratorComputation::Forward() {
   for (int32 t = 1; t <= frames_per_sequence_; t++) {
     AlphaGeneralFrame(t);
   }
+  KALDI_LOG << "*************************** Forward pruning stats: "
+            << " tot-pruned: " << tot_pruned_
+            << " tot_states_: " << tot_states_
+            << " ratio: " << 1.0 * tot_pruned_ / tot_states_;
   return ComputeTotLogLike();
 }
 
@@ -432,7 +439,7 @@ bool FullNumeratorComputation::Backward(
   for (int32 t = frames_per_sequence_ - 1; t >= 0; t--) {
     BetaGeneralFrame(t);
     // if pruning is enabled we need to normalize the occupation probs:
-    if (opts_.prune == 2 || opts_.prune == 3) {
+    if (opts_.prune == 2 || opts_.prune == 3 ||  opts_.prune == 4) {
       KALDI_VLOG(2) << "Time: " << t << ". Normalizing...";
       int32 t_wrapped = t % static_cast<int32>(kMaxDerivTimeSteps),
           num_pdfs = exp_nnet_output_transposed_.NumRows();
@@ -553,6 +560,9 @@ void FullNumeratorComputation::BetaGeneralFrame(int32 t) {
   const BaseFloat *prob_data = probs.Data();
   BaseFloat *log_prob_deriv_data = log_prob_deriv.Data();
   for (int32 s = 0; s < num_sequences; s++) {
+    if (!seq_ok_[s])
+      continue;
+    BaseFloat max_beta = 0.0;
     for (int32 h = 0; h < num_graph_.NumStates()[s]; h++) {
       BaseFloat this_alpha_prob = this_alpha[h * num_sequences + s],
           inv_arbitrary_scale =
@@ -594,8 +604,47 @@ void FullNumeratorComputation::BetaGeneralFrame(int32 t) {
       }
       this_beta[h * num_sequences + s] =
           tot_variable_factor ; /// inv_arbitrary_scale; #SCC#
+      if (tot_variable_factor > max_beta)
+        max_beta = tot_variable_factor;
+    }  // h
+
+
+    if (opts_.prune != 3 && opts_.prune != 4)
+      continue;
+    if (max_beta == 0.0 || max_beta - max_beta != 0.0) {
+      KALDI_LOG << "Bad max-beta for seq " << s << " at time " << t << ": "
+                << max_beta;
+      continue;
     }
-  }
+    KALDI_VLOG(2) << "Seq[" << s << "]@" << t << "  -->  max-beta: " << max_beta
+                  << ", num-states: " << num_graph_.NumStates()[s];
+    /// Prune
+    BFloat max_beta_log = Log(max_beta);
+    int32 npruned = 0;
+    BFloat totpruned = 0.0;
+    BFloat totnonpruned = 0.0;
+    for (int32 h = 0; h < num_graph_.NumStates()[s]; h++) {
+      if (Log(this_beta[h * num_sequences + s]) + opts_.prune_beam < max_beta_log) {
+        npruned++;
+        totpruned += this_beta[h * num_sequences + s];
+        // prune it
+        if (opts_.prune == 1) {  // first method of pruning  -- not possibe --> we have different sequences sharing the same obs matrix
+          // zero out all observations at time t for start-state = h
+        } else if (opts_.prune == 3 || opts_.prune == 4) {  // do forward-pruning
+          this_beta[h * num_sequences + s] = 0.0;
+        }
+      } else {
+        totnonpruned += this_beta[h * num_sequences + s];
+      }
+    }
+    KALDI_VLOG(1) << "Beta Seq[" << s << "]@" << t << "  -->  pruned " << npruned
+                  << " states with tot-prob: " << totpruned
+                  << " remaining states: " << num_graph_.NumStates()[s] - npruned
+                  << " and tot-unpruned-prob: " << totnonpruned;
+
+
+
+  }  // s
   SubMatrix<BFloat> beta_mat(this_beta,
                              num_graph_.MaxNumStates(),
                              num_sequences_,
@@ -640,7 +689,7 @@ void FullNumeratorComputation::BetaGeneralFrameDebug(int32 t) {
   Vector<BaseFloat> occup_probs_sum(num_sequences_);
   occup_probs_sum.AddRowSumMat(1.0, this_occup_probs, 0.0);
 
-  if (!(opts_.prune == 2 || opts_.prune == 3)) {  // in these two cases of pruning, these won't hold!
+  if (!(opts_.prune == 2 || opts_.prune == 3 || opts_.prune == 4)) {  // in these two cases of pruning, these won't hold!
     // do the cheks on a per-sequence basis
     for (int32 seq = 0; seq < num_sequences_; seq++)
       if (!ApproxEqual(alphabeta_sums(seq), 1.0)) {
