@@ -209,6 +209,8 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
   const std::string suffix = (is_backstitch_step2 ? "_backstitch" : "");
   std::vector<NnetChainSupervision>::const_iterator iter = eg.outputs.begin(),
       end = eg.outputs.end();
+  bool use_xent = (opts_.chain_config.xent_regularize != 0.0);
+  int N = 2;  // Number of outputs for model combination. TODO: make it an option
   for (; iter != end; ++iter) {
     const NnetChainSupervision &sup = *iter;
     int32 node_index = nnet_->GetNodeIndex(sup.name);
@@ -220,8 +222,8 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
     CuMatrix<BaseFloat> nnet_output_deriv(nnet_output.NumRows(),
                                           nnet_output.NumCols(),
                                           kUndefined);
+    CuVector<BaseFloat> per_seq_loglikes;
 
-    bool use_xent = (opts_.chain_config.xent_regularize != 0.0);
     std::string xent_name = sup.name + "-xent";  // typically "output-xent".
     CuMatrix<BaseFloat> xent_deriv;
 
@@ -231,7 +233,9 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
                              sup.supervision, nnet_output,
                              &tot_objf, &tot_l2_term, &tot_weight,
                              &nnet_output_deriv,
-                             (use_xent ? &xent_deriv : NULL));
+                             (use_xent ? &xent_deriv : NULL),
+                             &per_seq_loglikes);
+    KALDI_LOG << "Got chain obj for output: tot_objf: " << tot_objf / tot_weight;
 
     if (use_xent) {
       // this block computes the cross-entropy objective.
@@ -246,6 +250,8 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
                                         tot_weight, xent_objf);
     }
 
+    //KALDI_LOG << "sup.deriv_weights.Dim: " << sup.deriv_weights.Dim()
+    //          << " opts_.apply_deriv_weights: " << opts_.apply_deriv_weights;
     if (opts_.apply_deriv_weights && sup.deriv_weights.Dim() != 0) {
       CuVector<BaseFloat> cu_deriv_weights(sup.deriv_weights);
       nnet_output_deriv.MulRowsVec(cu_deriv_weights);
@@ -253,7 +259,69 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
         xent_deriv.MulRowsVec(cu_deriv_weights);
     }
 
+    // Let's just assume N is always 2 or easier initial implemetation
+    //for (int i = 2; i <= N; i++) {
+    //  std::string this_name = sup.name + "-" + std::to_string(i);  // e.g. "output-2".
+    const CuMatrixBase<BaseFloat> &other_nnet_output = computer->GetOutput("output-2");
+    CuMatrix<BaseFloat> other_output_deriv(other_nnet_output.NumRows(),
+                                           other_nnet_output.NumCols(),
+                                           kUndefined);
+    CuVector<BaseFloat> other_per_seq_loglikes;
+    BaseFloat other_tot_objf, other_tot_l2_term, other_tot_weight;
+    //KALDI_LOG << "Got output-2";
+    ComputeChainObjfAndDeriv(opts_.chain_config, den_graph_,
+                             sup.supervision, other_nnet_output,
+                             &other_tot_objf, &other_tot_l2_term, &other_tot_weight,
+                             &other_output_deriv,
+                             NULL, &other_per_seq_loglikes);
+
+    BaseFloat floor = 0.1;
+    KALDI_LOG << "Got chain obj for output-2: other_tot_objf: " << other_tot_objf/other_tot_weight;
+    /*Vector<BaseFloat> cpu_loglikes1(per_seq_loglikes);
+    Vector<BaseFloat> cpu_loglikes2(other_per_seq_loglikes);
+    Vector<BaseFloat> cpu_weights1(per_seq_loglikes.Dim());
+    Vector<BaseFloat> cpu_weights2(per_seq_loglikes.Dim());
+    for (int seq = 0; seq < cpu_loglikes1.Dim(); seq++) {
+
+    }*/
+    CuMatrix<BaseFloat> model_weights(per_seq_loglikes.Dim(), 2);
+    model_weights.CopyColFromVec(per_seq_loglikes, 0);
+    model_weights.CopyColFromVec(other_per_seq_loglikes, 1);
+    model_weights.ApplyLogSoftMaxPerRow(model_weights);
+    model_weights.ApplyExp();
+    Matrix<BaseFloat> cpu_weights(model_weights);
+    for (int seq = 0; seq < per_seq_loglikes.Dim(); seq++) {
+      if (!ApproxEqual(cpu_weights(seq, 0) + cpu_weights(seq, 1), 1.0))
+        KALDI_ERR << cpu_weights(seq, 0) << ", " << cpu_weights(seq, 1);
+      if (cpu_weights(seq, 0) < floor) {
+        cpu_weights(seq, 0) = floor;
+        cpu_weights(seq, 1) = 1 - floor;
+      } else if (cpu_weights(seq, 1) < floor) {
+        cpu_weights(seq, 1) = floor;
+        cpu_weights(seq, 0) = 1 - floor;
+      }
+    }
+    cpu_weights.Transpose();
+    if (WithProb(0.2))
+      cpu_weights.Write(std::cout, false);
+    Matrix<BaseFloat> cpu_weights_full(2, sup.supervision.frames_per_sequence *
+                                       sup.supervision.num_sequences);
+    KALDI_ASSERT(per_seq_loglikes.Dim() == sup.supervision.num_sequences);
+    for (int seq = 0; seq < per_seq_loglikes.Dim(); seq++) {
+      for (int t = 0; t < sup.supervision.frames_per_sequence; ++t) {
+        cpu_weights_full(0, t * sup.supervision.frames_per_sequence + seq) = cpu_weights(0, seq);
+        cpu_weights_full(1, t * sup.supervision.frames_per_sequence + seq) = cpu_weights(1, seq);
+      }
+    }
+    CuVector<BaseFloat> cu_deriv_weights(cpu_weights_full.Row(0));
+    //KALDI_LOG << "cu_deriv_weights.Dim: " << cu_deriv_weights.Dim()
+    //          << " nnet_output_deriv.R, C: " << nnet_output_deriv.NumRows()
+    //          << ", " << nnet_output_deriv.NumCols();
+    nnet_output_deriv.MulRowsVec(cu_deriv_weights);
     computer->AcceptInput(sup.name, &nnet_output_deriv);
+    CuVector<BaseFloat> other_cu_deriv_weights(cpu_weights_full.Row(1));
+    other_output_deriv.MulRowsVec(other_cu_deriv_weights);
+    computer->AcceptInput("output-2", &other_output_deriv);
 
     objf_info_[sup.name + suffix].UpdateStats(sup.name + suffix,
                                      opts_.nnet_config.print_interval,
@@ -264,6 +332,7 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
       xent_deriv.Scale(opts_.chain_config.xent_regularize);
       computer->AcceptInput(xent_name, &xent_deriv);
     }
+    use_xent = false;  // Only one output-xent
   }
 }
 

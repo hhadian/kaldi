@@ -230,17 +230,17 @@ void DenominatorComputation::Beta(int32 t) {
   beta_dash_mat.AddVecToRows(1.0, beta_dash_sum_vec);
 }
 
-BaseFloat DenominatorComputation::Forward() {
+BaseFloat DenominatorComputation::Forward(CuVector<BaseFloat>* loglikes) {
   AlphaFirstFrame();
   AlphaDash(0);
   for (int32 t = 1; t <= frames_per_sequence_; t++) {
     AlphaGeneralFrame(t);
     AlphaDash(t);
   }
-  return ComputeTotLogLike();
+  return ComputeTotLogLike(loglikes);
 }
 
-BaseFloat DenominatorComputation::ComputeTotLogLike() {
+BaseFloat DenominatorComputation::ComputeTotLogLike(CuVector<BaseFloat>* loglikes) {
   tot_prob_.Resize(num_sequences_);
   // View the last alpha-dash as a matrix of size num-hmm-states by num-sequences.
   CuSubMatrix<BaseFloat> last_alpha_dash(
@@ -273,6 +273,16 @@ BaseFloat DenominatorComputation::ComputeTotLogLike() {
   log_inv_arbitrary_scales.ApplyLog();
   BaseFloat log_inv_arbitrary_scales_product =
       log_inv_arbitrary_scales.Sum();
+
+  if (loglikes) {
+    loglikes->Resize(tot_log_prob_.Dim());
+    loglikes->CopyFromVec(tot_log_prob_);
+    CuVector<BaseFloat> log_inv_arbitrary_scales_per_seq(num_sequences_, kUndefined);
+    log_inv_arbitrary_scales_per_seq.AddRowSumMat(1.0, log_inv_arbitrary_scales, 0.0);
+    loglikes->AddVec(1.0, log_inv_arbitrary_scales_per_seq);
+  }
+
+
   return tot_log_prob + log_inv_arbitrary_scales_product;
 }
 

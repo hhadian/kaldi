@@ -138,7 +138,8 @@ void ComputeChainObjfAndDeriv(const ChainTrainingOptions &opts,
                               BaseFloat *l2_term,
                               BaseFloat *weight,
                               CuMatrixBase<BaseFloat> *nnet_output_deriv,
-                              CuMatrix<BaseFloat> *xent_output_deriv = NULL);
+                              CuMatrix<BaseFloat> *xent_output_deriv = NULL,
+                              CuVector<BaseFloat> *other_per_seq_loglikes = NULL);
 
 
 

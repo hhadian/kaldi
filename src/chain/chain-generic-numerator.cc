@@ -211,7 +211,8 @@ BaseFloat GenericNumeratorComputation::AlphaRemainingFrames(int seq,
 
 bool GenericNumeratorComputation::ForwardBackward(
                                  BaseFloat *total_loglike,
-                                 CuMatrixBase<BaseFloat> *nnet_output_deriv) {
+                                 CuMatrixBase<BaseFloat> *nnet_output_deriv,
+                                 CuVector<BaseFloat> *loglikes) {
   KALDI_ASSERT(total_loglike != NULL);
   KALDI_ASSERT(nnet_output_deriv != NULL);
   KALDI_ASSERT(nnet_output_deriv->NumCols() == nnet_output_.NumCols());
@@ -232,10 +233,16 @@ bool GenericNumeratorComputation::ForwardBackward(
   derivs.Resize(probs.NumRows(), probs.NumCols());
   derivs.Set(-std::numeric_limits<BaseFloat>::infinity());
 
+  if (loglikes)
+    loglikes->Resize(num_sequences);
   for (int seq = 0; seq < num_sequences; ++seq) {
     // Forward part
     AlphaFirstFrame(seq, &alpha);
-    partial_loglike += AlphaRemainingFrames(seq, probs, &alpha);
+    BaseFloat this_loglike = AlphaRemainingFrames(seq, probs, &alpha);
+    if (loglikes)
+      (*loglikes)(seq) = this_loglike;
+
+    partial_loglike += this_loglike;
 
     // Backward part
     BetaLastFrame(seq, alpha, &beta);
@@ -249,7 +256,7 @@ bool GenericNumeratorComputation::ForwardBackward(
   return ok;
 }
 
-BaseFloat GenericNumeratorComputation::ComputeObjf() {
+BaseFloat GenericNumeratorComputation::ComputeObjf(CuVector<BaseFloat> *loglikes) {
   BaseFloat partial_loglike = 0;
   const int32 num_sequences = supervision_.num_sequences;
 
@@ -259,10 +266,16 @@ BaseFloat GenericNumeratorComputation::ComputeObjf() {
   // We selectively copy only those pdfs we need
   CopySpecificPdfsIndirect(nnet_output_, index_to_pdf_, &probs);
 
+  if (loglikes)
+    loglikes->Resize(num_sequences);
   for (int seq = 0; seq < num_sequences; ++seq) {
     // Forward part
     AlphaFirstFrame(seq, &alpha);
-    partial_loglike += AlphaRemainingFrames(seq, probs, &alpha);
+    BaseFloat this_loglike = AlphaRemainingFrames(seq, probs, &alpha);
+    if (loglikes)
+      (*loglikes)(seq) = this_loglike;
+
+    partial_loglike += this_loglike;
   }
   return partial_loglike;
 }

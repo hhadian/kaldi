@@ -215,7 +215,7 @@ class DenominatorComputation {
   // factor, manually.  Note: this log-like will be negated before it
   // is added into the objective function, since this is the denominator
   // computation.
-  BaseFloat Forward();
+  BaseFloat Forward(CuVector<BaseFloat>* loglikes = NULL);
 
   // this adds deriv_weight times (the derivative of the log-prob w.r.t. the
   // nnet output), to 'nnet_output_deriv'.  Note: normally, deriv_weight
@@ -244,7 +244,7 @@ class DenominatorComputation {
   // doing correction) log_correction_term_.  Note, this won't be scaled by
   // 'deriv_scale' (which of course we haven't seen by the time this is called,
   // from the Forward() computation).
-  BaseFloat ComputeTotLogLike();
+  BaseFloat ComputeTotLogLike(CuVector<BaseFloat>* loglikes = NULL);
 
   void BetaDashLastFrame();
   // beta computation for 0 <= beta < num_time_steps_.
