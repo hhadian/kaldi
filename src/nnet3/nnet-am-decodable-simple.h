@@ -152,7 +152,8 @@ class DecodableNnetSimple {
                       CachingOptimizingCompiler *compiler,
                       const VectorBase<BaseFloat> *ivector = NULL,
                       const MatrixBase<BaseFloat> *online_ivectors = NULL,
-                      int32 online_ivector_period = 1);
+                      int32 online_ivector_period = 1,
+                      std::string output = "output");
 
 
   // returns the number of frames of likelihoods.  The same as feats_.NumRows()
@@ -244,6 +245,7 @@ class DecodableNnetSimple {
   // opts_.frame_subsampling_factor > 1, this will be measured in subsampled
   // frames.
   int32 current_log_post_subsampled_offset_;
+  std::string outputname_;
 };
 
 class DecodableAmNnetSimple: public DecodableInterface {
@@ -289,7 +291,8 @@ class DecodableAmNnetSimple: public DecodableInterface {
                         const VectorBase<BaseFloat> *ivector = NULL,
                         const MatrixBase<BaseFloat> *online_ivectors = NULL,
                         int32 online_ivector_period = 1,
-                        CachingOptimizingCompiler *compiler = NULL);
+                        CachingOptimizingCompiler *compiler = NULL,
+                        std::string output = "output");
 
 
   virtual BaseFloat LogLikelihood(int32 frame, int32 transition_id);

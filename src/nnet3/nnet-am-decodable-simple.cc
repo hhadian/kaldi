@@ -32,7 +32,8 @@ DecodableNnetSimple::DecodableNnetSimple(
     CachingOptimizingCompiler *compiler,
     const VectorBase<BaseFloat> *ivector,
     const MatrixBase<BaseFloat> *online_ivectors,
-    int32 online_ivector_period):
+    int32 online_ivector_period,
+    std::string output):
     opts_(opts),
     nnet_(nnet),
     output_dim_(nnet_.OutputDim("output")),
@@ -41,7 +42,8 @@ DecodableNnetSimple::DecodableNnetSimple(
     ivector_(ivector), online_ivector_feats_(online_ivectors),
     online_ivector_period_(online_ivector_period),
     compiler_(*compiler),
-    current_log_post_subsampled_offset_(0) {
+    current_log_post_subsampled_offset_(0),
+    outputname_(output){
   num_subsampled_frames_ =
       (feats_.NumRows() + opts_.frame_subsampling_factor - 1) /
       opts_.frame_subsampling_factor;
@@ -63,12 +65,13 @@ DecodableAmNnetSimple::DecodableAmNnetSimple(
     const VectorBase<BaseFloat> *ivector,
     const MatrixBase<BaseFloat> *online_ivectors,
     int32 online_ivector_period,
-    CachingOptimizingCompiler *compiler):
+    CachingOptimizingCompiler *compiler,
+    std::string output):
     compiler_(am_nnet.GetNnet(), opts.optimize_config, opts.compiler_config),
     decodable_nnet_(opts, am_nnet.GetNnet(), am_nnet.Priors(),
                     feats, compiler != NULL ? compiler : &compiler_,
                     ivector, online_ivectors,
-                    online_ivector_period),
+                    online_ivector_period, output),
     trans_model_(trans_model) {
   // note: we only use compiler_ if the passed-in 'compiler' is NULL.
 }
@@ -237,8 +240,10 @@ void DecodableNnetSimple::DoNnetComputation(
     indexes.push_back(Index(0, 0, 0));
     request.inputs.push_back(IoSpecification("ivector", indexes));
   }
+  if (WithProb(0.1))
+    KALDI_LOG << "output-name: " << outputname_;
   IoSpecification output_spec;
-  output_spec.name = "output";
+  output_spec.name = outputname_;
   output_spec.has_deriv = false;
   int32 subsample = opts_.frame_subsampling_factor;
   output_spec.indexes.resize(num_subsampled_frames);
@@ -263,7 +268,7 @@ void DecodableNnetSimple::DoNnetComputation(
   }
   computer.Run();
   CuMatrix<BaseFloat> cu_output;
-  computer.GetOutputDestructive("output", &cu_output);
+  computer.GetOutputDestructive(outputname_, &cu_output);
   // subtract log-prior (divide by prior)
   if (log_priors_.Dim() != 0)
     cu_output.AddVecToRows(-1.0, log_priors_);
