@@ -65,7 +65,7 @@ void NnetChainTrainer::Train(const NnetChainExample &chain_eg) {
   GetChainComputationRequest(*nnet_, chain_eg, need_model_derivative,
                              nnet_config.store_component_stats,
                              use_xent_regularization, need_model_derivative,
-                             &request);
+                             &request, opts_.n_outputs);
   std::shared_ptr<const NnetComputation> computation = compiler_.Compile(request);
 
   if (nnet_config.backstitch_training_scale > 0.0 && num_minibatches_processed_
@@ -277,13 +277,7 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
 
     BaseFloat floor = 0.1;
     KALDI_LOG << "Got chain obj for output-2: other_tot_objf: " << other_tot_objf/other_tot_weight;
-    /*Vector<BaseFloat> cpu_loglikes1(per_seq_loglikes);
-    Vector<BaseFloat> cpu_loglikes2(other_per_seq_loglikes);
-    Vector<BaseFloat> cpu_weights1(per_seq_loglikes.Dim());
-    Vector<BaseFloat> cpu_weights2(per_seq_loglikes.Dim());
-    for (int seq = 0; seq < cpu_loglikes1.Dim(); seq++) {
 
-    }*/
     CuMatrix<BaseFloat> model_weights(per_seq_loglikes.Dim(), 2);
     model_weights.CopyColFromVec(per_seq_loglikes, 0);
     model_weights.CopyColFromVec(other_per_seq_loglikes, 1);
@@ -309,24 +303,31 @@ void NnetChainTrainer::ProcessOutputs(bool is_backstitch_step2,
     KALDI_ASSERT(per_seq_loglikes.Dim() == sup.supervision.num_sequences);
     for (int seq = 0; seq < per_seq_loglikes.Dim(); seq++) {
       for (int t = 0; t < sup.supervision.frames_per_sequence; ++t) {
-        cpu_weights_full(0, t * sup.supervision.frames_per_sequence + seq) = cpu_weights(0, seq);
-        cpu_weights_full(1, t * sup.supervision.frames_per_sequence + seq) = cpu_weights(1, seq);
+        cpu_weights_full(0, t * sup.supervision.num_sequences + seq) = cpu_weights(0, seq);
+        cpu_weights_full(1, t * sup.supervision.num_sequences + seq) = cpu_weights(1, seq);
       }
     }
-    CuVector<BaseFloat> cu_deriv_weights(cpu_weights_full.Row(0));
+    CuVector<BaseFloat> cu_deriv_weights(cpu_weights_full.Row(0).Dim());
+    cu_deriv_weights.CopyFromVec(cpu_weights_full.Row(0));
     //KALDI_LOG << "cu_deriv_weights.Dim: " << cu_deriv_weights.Dim()
     //          << " nnet_output_deriv.R, C: " << nnet_output_deriv.NumRows()
     //          << ", " << nnet_output_deriv.NumCols();
     nnet_output_deriv.MulRowsVec(cu_deriv_weights);
+    //CuVector<BaseFloat> other_cu_deriv_weights(cpu_weights_full.Row(1));
+    cu_deriv_weights.CopyFromVec(cpu_weights_full.Row(1));
+    other_output_deriv.MulRowsVec(cu_deriv_weights);
+
     computer->AcceptInput(sup.name, &nnet_output_deriv);
-    CuVector<BaseFloat> other_cu_deriv_weights(cpu_weights_full.Row(1));
-    other_output_deriv.MulRowsVec(other_cu_deriv_weights);
     computer->AcceptInput("output-2", &other_output_deriv);
 
     objf_info_[sup.name + suffix].UpdateStats(sup.name + suffix,
                                      opts_.nnet_config.print_interval,
                                      num_minibatches_processed_,
                                      tot_weight, tot_objf, tot_l2_term);
+    objf_info_["output-2" + suffix].UpdateStats("output-2" + suffix,
+                                     opts_.nnet_config.print_interval,
+                                     num_minibatches_processed_,
+                                     other_tot_weight, other_tot_objf, other_tot_l2_term);
 
     if (use_xent) {
       xent_deriv.Scale(opts_.chain_config.xent_regularize);

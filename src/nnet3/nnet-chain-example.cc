@@ -293,7 +293,8 @@ void GetChainComputationRequest(const Nnet &nnet,
                                 bool store_component_stats,
                                 bool use_xent_regularization,
                                 bool use_xent_derivative,
-                                ComputationRequest *request) {
+                                ComputationRequest *request,
+                                int n_outputs) {
   request->inputs.clear();
   request->inputs.reserve(eg.inputs.size());
   request->outputs.clear();
@@ -344,12 +345,13 @@ void GetChainComputationRequest(const Nnet &nnet,
     }
   }
   // For n=2 model-combination training:
-  request->outputs.resize(request->outputs.size() + 1);
-  IoSpecification &io_spec = request->outputs.back();
-  io_spec.name = "output-2";
-  io_spec.indexes = request->outputs[request->outputs.size() - 2].indexes;
-  io_spec.has_deriv = need_model_derivative;
-
+  for (int i = 2; i <= n_outputs; ++i) {
+    request->outputs.resize(request->outputs.size() + 1);
+    IoSpecification &io_spec = request->outputs.back();
+    io_spec.name = "output-" + std::to_string(i);
+    io_spec.indexes = request->outputs[request->outputs.size() - 2].indexes;
+    io_spec.has_deriv = need_model_derivative;
+  }
 
   // check to see if something went wrong.
   if (request->inputs.empty())

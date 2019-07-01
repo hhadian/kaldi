@@ -213,7 +213,8 @@ void GetChainComputationRequest(const Nnet &nnet,
                                 bool store_component_stats,
                                 bool use_xent_regularization,
                                 bool use_xent_derivative,
-                                ComputationRequest *computation_request);
+                                ComputationRequest *computation_request,
+                                int n_outputs = 1);
 
 
 

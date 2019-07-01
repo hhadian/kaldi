@@ -36,7 +36,8 @@ struct NnetChainTrainingOptions {
   NnetTrainerOptions nnet_config;
   chain::ChainTrainingOptions chain_config;
   bool apply_deriv_weights;
-  NnetChainTrainingOptions(): apply_deriv_weights(true) { }
+  int n_outputs;
+  NnetChainTrainingOptions(): apply_deriv_weights(true), n_outputs(1) { }
 
   void Register(OptionsItf *opts) {
     nnet_config.Register(opts);
@@ -44,6 +45,7 @@ struct NnetChainTrainingOptions {
     opts->Register("apply-deriv-weights", &apply_deriv_weights,
                    "If true, apply the per-frame derivative weights stored with "
                    "the example");
+    opts->Register("num-outputs", &n_outputs);
   }
 };
 

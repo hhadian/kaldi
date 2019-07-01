@@ -233,14 +233,12 @@ bool GenericNumeratorComputation::ForwardBackward(
   derivs.Resize(probs.NumRows(), probs.NumCols());
   derivs.Set(-std::numeric_limits<BaseFloat>::infinity());
 
-  if (loglikes)
-    loglikes->Resize(num_sequences);
+  Vector<BaseFloat> cpu_loglikes(num_sequences);
   for (int seq = 0; seq < num_sequences; ++seq) {
     // Forward part
     AlphaFirstFrame(seq, &alpha);
     BaseFloat this_loglike = AlphaRemainingFrames(seq, probs, &alpha);
-    if (loglikes)
-      (*loglikes)(seq) = this_loglike;
+    cpu_loglikes(seq) = this_loglike;
 
     partial_loglike += this_loglike;
 
@@ -253,6 +251,10 @@ bool GenericNumeratorComputation::ForwardBackward(
   // Transfer and add the derivatives to the values in the matrix
   AddSpecificPdfsIndirect(&derivs, index_to_pdf_, nnet_output_deriv);
   *total_loglike = partial_loglike;
+  if (loglikes) {
+    loglikes->Resize(num_sequences);
+    loglikes->CopyFromVec(cpu_loglikes);
+  }
   return ok;
 }
 
@@ -266,16 +268,18 @@ BaseFloat GenericNumeratorComputation::ComputeObjf(CuVector<BaseFloat> *loglikes
   // We selectively copy only those pdfs we need
   CopySpecificPdfsIndirect(nnet_output_, index_to_pdf_, &probs);
 
-  if (loglikes)
-    loglikes->Resize(num_sequences);
+  Vector<BaseFloat> cpu_loglikes(num_sequences);
   for (int seq = 0; seq < num_sequences; ++seq) {
     // Forward part
     AlphaFirstFrame(seq, &alpha);
     BaseFloat this_loglike = AlphaRemainingFrames(seq, probs, &alpha);
-    if (loglikes)
-      (*loglikes)(seq) = this_loglike;
+    cpu_loglikes(seq) = this_loglike;
 
     partial_loglike += this_loglike;
+  }
+  if (loglikes) {
+    loglikes->Resize(num_sequences);
+    loglikes->CopyFromVec(cpu_loglikes);
   }
   return partial_loglike;
 }
